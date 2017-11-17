@@ -2,6 +2,16 @@
 #include <string.h>
 #include <sys/time.h>
 
+struct input_events
+{
+	bool keyboard_return;
+	bool keyboard_backspace;
+	bool keyboard_up;
+	bool keyboard_down;
+	bool keyboard_left;
+	bool keyboard_right;
+};
+
 struct pixel_buffer
 {
     void *pixels;
@@ -14,7 +24,8 @@ struct pixel_buffer
 struct door
 {
 	int side;
-	int position;
+	int x;
+	int y;
 };
 
 struct level
@@ -28,7 +39,22 @@ struct level
 	struct level *next_level;
 };
 
-int tile_size = 50;
+struct player
+{
+	int x;
+	int y;
+	bool has_moved;
+};
+
+struct game_state
+{
+	bool initialised;
+	struct level *current_level;
+	struct player player_1;
+};
+
+
+int tile_size = 40;
 
 char sides[4] = "NESW";	
 char door_types[4] = "01EX";	
