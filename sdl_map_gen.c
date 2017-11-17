@@ -8,63 +8,82 @@
 
 #include "map_gen.c"
 
-int main () 
+struct display
 {
-    struct pixel_buffer main_buffer;
+    void *window;
+    void *renderer;
+    void *texture;
+};
 
-//    SDL_GetWindowSize(window, 
-//        &main_buffer.client_width, &main_buffer.client_height);
-
-    struct level start_level;
-    generate_level(&start_level);
-
-    int tile_size = get_tile_size();
-
-    main_buffer.client_width = start_level.width * tile_size;
-    main_buffer.client_height = start_level.height * tile_size;
-
-    SDL_Init(SDL_INIT_VIDEO);
-
-    SDL_Window *window = SDL_CreateWindow(
-        "An SDL2 window",
+void create_display (struct display *main_display, struct pixel_buffer *main_buffer)
+{
+    main_display->window = SDL_CreateWindow(
+        "Map Generator",
         SDL_WINDOWPOS_UNDEFINED,
         SDL_WINDOWPOS_UNDEFINED,
-        main_buffer.client_width, main_buffer.client_height,
+        main_buffer->client_width, main_buffer->client_height,
         SDL_WINDOW_SHOWN
     );
 
-    // Check that the window was successfully created
-    if (window == NULL) {
-        // In the case that the window could not be made...
+    if (main_display->window == NULL) {
         printf("Could not create window: %s\n", SDL_GetError());
         SDL_Quit();
-        return 1;
     }
 
-    SDL_Renderer *renderer = SDL_CreateRenderer(window, -1, 
+    main_display->renderer = SDL_CreateRenderer(main_display->window, -1, 
         SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
-    if (renderer == NULL){
+    if (main_display->renderer == NULL){
         printf("Could not create renderer: %s\n", SDL_GetError());
         SDL_Quit();
-        return 1;
     }
 
-    main_buffer.client_width = start_level.width * tile_size;
-    main_buffer.client_height = start_level.height * tile_size;
-
-    SDL_Texture *texture = SDL_CreateTexture(renderer, 
+    main_display->texture = SDL_CreateTexture(main_display->renderer, 
         SDL_PIXELFORMAT_ARGB8888, 
         SDL_TEXTUREACCESS_STREAMING, 
-        main_buffer.client_width, main_buffer.client_height);
+        main_buffer->client_width, main_buffer->client_height);
 
-    main_buffer.bytes_per_pixel = 4;
+    if (main_buffer->pixels)
+    {
+        free(main_buffer->pixels);
+    }
+    main_buffer->pixels = malloc(main_buffer->client_width * main_buffer->client_height * main_buffer->bytes_per_pixel);
+}
 
-    main_buffer.pixels = mmap(0, main_buffer.client_width * main_buffer.client_height * main_buffer.bytes_per_pixel,
-        PROT_READ | PROT_WRITE,
-        MAP_ANON | MAP_PRIVATE,
-        -1, 0);
+void recreate_display (struct level *current_level, struct display *main_display, struct pixel_buffer *main_buffer)
+{
+    main_buffer->client_width = current_level->width * tile_size;
+    main_buffer->client_height = current_level->height * tile_size;
+    main_buffer->texture_pitch = main_buffer->client_width * main_buffer->bytes_per_pixel;
 
-    main_buffer.texture_pitch = main_buffer.client_width * main_buffer.bytes_per_pixel;
+    SDL_DestroyWindow(main_display->window);
+    SDL_DestroyRenderer(main_display->renderer);
+    SDL_DestroyTexture(main_display->texture);
+
+    create_display(main_display, main_buffer);
+}
+
+int main () 
+{
+
+    struct level *start_level = {0};
+
+    initialise(&start_level);
+    generate_level(&start_level);
+
+    struct pixel_buffer *main_buffer = malloc(sizeof(struct pixel_buffer));
+    main_buffer->pixels = NULL;
+
+    main_buffer->client_width = start_level->width * tile_size;
+    main_buffer->client_height = start_level->height * tile_size;
+
+    main_buffer->bytes_per_pixel = 4;
+    main_buffer->texture_pitch = main_buffer->client_width * main_buffer->bytes_per_pixel;
+
+    SDL_Init(SDL_INIT_VIDEO);
+
+    struct display *main_display = malloc(sizeof(struct display));
+
+    create_display(main_display, main_buffer);
 
     // Game loop begins here
     bool quit = false;
@@ -83,59 +102,52 @@ int main ()
                 {
                     switch(event.window.event)
                     {
-                        case SDL_WINDOWEVENT_SIZE_CHANGED:
-                        {
-                            /*
-                            if (main_buffer.pixels)
-                                munmap(main_buffer.pixels, main_buffer.client_width * main_buffer.client_height * main_buffer.bytes_per_pixel);
-                                                        
-                            if (texture)
-                                SDL_DestroyTexture(texture);
-
-                            main_buffer.client_width = event.window.data1;
-                            main_buffer.client_height = event.window.data2;
-                            main_buffer.texture_pitch = main_buffer.client_width * main_buffer.bytes_per_pixel;
-
-                            texture = SDL_CreateTexture(renderer, 
-                                SDL_PIXELFORMAT_ARGB8888, 
-                                SDL_TEXTUREACCESS_STREAMING, 
-                                main_buffer.client_width, main_buffer.client_height);
-
-                            main_buffer.pixels = mmap(0, main_buffer.client_width * main_buffer.client_height * main_buffer.bytes_per_pixel,
-                                PROT_READ | PROT_WRITE,
-                                MAP_ANON | MAP_PRIVATE,
-                                -1, 0);
-                                */
-                        }
                         case SDL_WINDOWEVENT_EXPOSED:
                         {
-                            SDL_RenderCopy(renderer, texture, NULL, NULL);
-                            SDL_RenderPresent(renderer);
+                            SDL_RenderCopy(main_display->renderer, main_display->texture, NULL, NULL);
+                            SDL_RenderPresent(main_display->renderer);
                         } break;
                     }       
+                }
+                case SDL_KEYDOWN:
+                {
+                    switch(event.key.keysym.sym)
+                    {
+                        case SDLK_RETURN:
+                        {
+                            next_level(&start_level);
+                            recreate_display (start_level, main_display, main_buffer);
+                        } break;
+
+                        case SDLK_BACKSPACE:
+                        {
+                            if (prev_level(&start_level))
+                                recreate_display (start_level, main_display, main_buffer);
+                        }
+                    }
                 }
             }
         }
 
-        render_game(&main_buffer, &start_level, tile_size);
+        render_game(main_buffer, start_level);
 
         // Now apply pixel buffer to texture
-        if(SDL_UpdateTexture(texture,
-          NULL, main_buffer.pixels,
-          main_buffer.texture_pitch))
+        if(SDL_UpdateTexture(main_display->texture,
+          NULL, main_buffer->pixels,
+          main_buffer->texture_pitch))
         {
-            printf("Could not update texture: %s\n", SDL_GetError());
+            //printf("Could not update texture: %s\n", SDL_GetError());
         }
 
         // and present texture on the renderer
-        SDL_RenderCopy(renderer, texture, NULL, NULL);
+        SDL_RenderCopy(main_display->renderer, main_display->texture, NULL, NULL);
 
-        SDL_RenderPresent(renderer);
+        SDL_RenderPresent(main_display->renderer);
 
     }
 
     // Close and destroy the window
-    SDL_DestroyWindow(window);
+    SDL_DestroyWindow(main_display->window);
 
     // Clean up
     SDL_Quit();

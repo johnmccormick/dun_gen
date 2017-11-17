@@ -28,5 +28,7 @@ struct level
 	struct level *next_level;
 };
 
+int tile_size = 50;
+
 char sides[4] = "NESW";	
-char door_types[3] = "01X";	
+char door_types[4] = "01EX";	
