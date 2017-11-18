@@ -50,8 +50,10 @@ int main ()
 
     main_buffer->pixels = malloc(main_buffer->client_width * main_buffer->client_height * main_buffer->bytes_per_pixel);
 
-    void *game_memory = malloc(sizeof(1024));
-    memset(game_memory, 0, sizeof(game_memory));
+    // Game state will take this address, meaning all of it's values are initialised to zero
+    int game_memory_size = 1024;
+    void *game_memory = malloc(game_memory_size);
+    memset(game_memory, 0, game_memory_size);
 
     struct input_events zeroed_input_events;
     zeroed_input_events.keyboard_return = 0;

@@ -65,7 +65,6 @@ void render_game(struct pixel_buffer *write_buffer, struct game_state *main_game
 			row += write_buffer->texture_pitch;
 		}
 	}
-
 	// Pad the bottom
 	for (int y = 0; y < padding_height / 2; ++y)
 	{
@@ -198,10 +197,40 @@ void move_player (struct game_state *main_game_state, int x, int y)
 
 		main_game_state->player_1.has_moved = true;
 	}
+	// If going out of bounds
+	else if (main_game_state->player_1.y + y < 0 || main_game_state->player_1.y + y >= main_game_state->current_level->height 
+		|| main_game_state->player_1.x + x < 0 || main_game_state->player_1.x + x >= main_game_state->current_level->width)
+	{
+		// If on exit
+		if ((main_game_state->player_1.x == main_game_state->current_level->exit.x) && (main_game_state->player_1.y == main_game_state->current_level->exit.y))
+		{
+			next_level(&(main_game_state->current_level));
+
+			main_game_state->player_1.x = main_game_state->current_level->entrance.x;
+			main_game_state->player_1.y = main_game_state->current_level->entrance.y;
+
+			main_game_state->player_1.has_moved = false;
+		}
+		// If on entrance
+		else if ((main_game_state->player_1.x == main_game_state->current_level->entrance.x) && (main_game_state->player_1.y == main_game_state->current_level->entrance.y))
+		{
+			prev_level(&(main_game_state->current_level));
+			
+			main_game_state->player_1.x = main_game_state->current_level->exit.x;
+			main_game_state->player_1.y = main_game_state->current_level->exit.y;
+
+			main_game_state->player_1.has_moved = false;
+		}
+	}
 }
 
 void main_game_loop (struct pixel_buffer *write_buffer, void *game_memory, struct input_events input)
 {
+
+	if (write_buffer)
+	{
+
+	}
 
 	struct game_state *main_game_state = game_memory;
 
