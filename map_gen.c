@@ -3,12 +3,19 @@
 void render_game(struct pixel_buffer *write_buffer, struct game_state *main_game_state)
 {
 	// Main 'render' loop
-	int padding_height = write_buffer->client_height - (main_game_state->current_level->height * tile_size);
-	int padding_width = write_buffer->client_width - (main_game_state->current_level->width * tile_size);
+	int padding_height = (write_buffer->client_height - (main_game_state->current_level->height * tile_size)) / 2;
+	int padding_width = (write_buffer->client_width - (main_game_state->current_level->width * tile_size)) / 2;
+
+	//int left_padding = (main_game_state->player_1.x * tile_size);
+	int left_padding = ((((main_game_state->current_level->width) / 2) - main_game_state->player_1.x) * tile_size) - (tile_size / 2);
+	int right_padding = ((main_game_state->player_1.x - ((main_game_state->current_level->width) / 2)) * tile_size) + (tile_size / 2);
+
+	int top_padding = ((((main_game_state->current_level->height) / 2) - main_game_state->player_1.y) * tile_size) - (tile_size / 2);
+	int bottom_padding = ((main_game_state->player_1.y - ((main_game_state->current_level->height) / 2)) * tile_size) + (tile_size / 2);
 
 	uint8_t *row = (uint8_t *)write_buffer->pixels;
 	// Pad the top
-	for (int y = 0; y < padding_height / 2; ++y)
+	for (int y = 0; y < padding_height + top_padding; ++y)
 	{
 		uint32_t *pixel = (uint32_t *) row;
 		for (int x = 0; x < write_buffer->client_width; ++x)
@@ -25,7 +32,7 @@ void render_game(struct pixel_buffer *write_buffer, struct game_state *main_game
 			// HORIZONTAL			
 			// Pad the left
 			uint32_t *pixel = (uint32_t *) row;
-			for (int ex = 0; ex < padding_width / 2; ++ex)
+			for (int ex = 0; ex < padding_width + left_padding; ++ex)
 			{
 				*pixel++ = 0x00000000;
 			}
@@ -57,7 +64,7 @@ void render_game(struct pixel_buffer *write_buffer, struct game_state *main_game
 				}
 			}
 			// Pad the right
-			for (int ex = 0; ex < padding_width / 2; ++ex)
+			for (int ex = 0; ex < padding_width + right_padding; ++ex)
 			{
 				*pixel++ = 0x00000000;
 			}
@@ -66,7 +73,7 @@ void render_game(struct pixel_buffer *write_buffer, struct game_state *main_game
 		}
 	}
 	// Pad the bottom
-	for (int y = 0; y < padding_height / 2; ++y)
+	for (int y = 0; y < padding_height + bottom_padding; ++y)
 	{
 		uint32_t *pixel = (uint32_t *) row;
 		for (int x = 0; x < write_buffer->client_width; ++x)
