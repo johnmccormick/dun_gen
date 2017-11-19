@@ -2,91 +2,91 @@
 
 void render_game(struct pixel_buffer *write_buffer, struct game_state *main_game_state)
 {
-	int half_client_width = write_buffer->client_width / 2;
+	int total_pixels = write_buffer->client_height * write_buffer->texture_pitch;
+
+	// Clear background
+	uint8_t *byte = (uint8_t *)write_buffer->pixels;
+	for (int i = 0; i < total_pixels; ++i)
+	{
+		*byte++ = 0x00000000;
+	}
+
+
+	int half_client_width = write_buffer->client_width / 2;	
 	int half_client_height = write_buffer->client_height / 2;
 
-	int half_tiled_level_width = tile_size * main_game_state->current_level->width / 2;
-	int half_tiled_level_height = tile_size * main_game_state->current_level->height / 2;
+//	int half_tiled_level_width = tile_size * main_game_state->current_level->width / 2;
+//	int half_tiled_level_height = tile_size * main_game_state->current_level->height / 2;
 
 	int player_tiled_x = (main_game_state->player_1.x * tile_size) + tile_size / 2;
 	int player_tiled_y = (main_game_state->player_1.y * tile_size) + tile_size / 2;
 
-	int left_padding = half_client_width - half_tiled_level_width + half_tiled_level_width - player_tiled_x;
-	int right_padding = half_client_width - half_tiled_level_width - half_tiled_level_width + player_tiled_x;
 
-	int top_padding = half_client_height - half_tiled_level_height + half_tiled_level_height - player_tiled_y;
-	int bottom_padding = half_client_height - half_tiled_level_height - half_tiled_level_height + player_tiled_y;
+	uint8_t *p_location = (uint8_t *)write_buffer->pixels;
+	int px_offset = ((half_client_width - player_tiled_x) * write_buffer->bytes_per_pixel);
+	int py_offset = ((half_client_height - player_tiled_y) * write_buffer->texture_pitch);
 
-	uint8_t *row = (uint8_t *)write_buffer->pixels;
+	if (px_offset >= 0)
+		p_location += px_offset;
+	if (py_offset >= 0)
+		p_location += py_offset;
 
-	for (int pad_y = 0; pad_y < top_padding; ++pad_y)
-	{
-		uint32_t *pixel = (uint32_t *) row;
-		for (int x = 0; x < write_buffer->client_width; ++x)
-		{
-			*pixel++ = 0x00000000;
-		}
-		row += write_buffer->texture_pitch;
+	int y_start;
+	int y_end;
+
+	if (player_tiled_y - half_client_height > 0)
+	{		
+		y_start = (player_tiled_y - half_client_height) / tile_size;
 	}
-	for (int y = 0; y < main_game_state->current_level->height; ++y)
+	else
+	{
+		y_start = 0;
+	}
+	if ((y_start * tile_size) + write_buffer->client_height < main_game_state->current_level->height * tile_size)
+	{
+		y_end = y_start + (write_buffer->client_height / tile_size);
+	}
+	else
+	{
+		y_end = main_game_state->current_level->height;
+	}
+	for (int y = y_start; y < y_end; ++y)
 	{
 		for (int height_pixels = 0; height_pixels < tile_size; ++height_pixels)
 		{
-			if (top_padding + (y * tile_size) + height_pixels >= 0
-				&& top_padding + (y * tile_size) + height_pixels < write_buffer->client_height)
+			uint32_t *pixel = (uint32_t *) p_location;
+			int x = 0;
+			for (x = 0; x < main_game_state->current_level->width; ++x)
 			{
-				uint32_t *pixel = (uint32_t *) row;
-				for (int pad_x = 0; pad_x < left_padding; ++pad_x)
+				for (int width_pixels = 0; width_pixels < tile_size; ++width_pixels)
 				{
-					*pixel++ = 0x00000000;
-				}
-				for (int x = 0; x < main_game_state->current_level->width; ++x)
-				{
-					for (int width_pixels = 0; width_pixels < tile_size; ++width_pixels)
+				
+					if (main_game_state->player_1.x == x && main_game_state->player_1.y == y)
+						*pixel++ = 0x000000ff;
+					else
 					{
-						if (left_padding + (x * tile_size) + width_pixels >= 0
-							&& left_padding + (x * tile_size) + width_pixels < write_buffer->client_width)
-						{
-							// See if player is occupying tile
-							if (main_game_state->player_1.x == x && main_game_state->player_1.y == y)
-								*pixel++ = 0x000000ff;
-							else
-							{
-								if (*(main_game_state->current_level->map + (y * main_game_state->current_level->width) + x) == 1)
-									// Floor
-									*pixel++ = 0x00ffffff;
-								else if 
-									(*(main_game_state->current_level->map + (y * main_game_state->current_level->width) + x) == 2)
-									// Entrance
-									*pixel++ = 0x00999999;
-								else if 
-									(*(main_game_state->current_level->map + (y * main_game_state->current_level->width) + x) == 3)
-									// Exit
-									*pixel++ = 0x0000e600;
-								else
-									//Wall
-									*pixel++ = 0x00222222;
-							}
-						}
+						if (*(main_game_state->current_level->map + (y * main_game_state->current_level->width) + x) == 1)
+							// Floor
+							*pixel++ = 0x00ffffff;
+						else if 
+							(*(main_game_state->current_level->map + (y * main_game_state->current_level->width) + x) == 2)
+							// Entrance
+							*pixel++ = 0x00999999;
+						else if 
+							(*(main_game_state->current_level->map + (y * main_game_state->current_level->width) + x) == 3)
+							// Exit
+							*pixel++ = 0x0000e600;
+						else
+							//Wall
+							*pixel++ = 0x00222222;
 					}
+
 				}
-				for (int pad_x = 0; pad_x < right_padding; ++pad_x)
-				{
-					*pixel++ = 0x00000000;
-				}
-				row += write_buffer->texture_pitch;
 			}
+			p_location += write_buffer->texture_pitch;
 		}
 	}
-	for (int pad_y = 0; pad_y < bottom_padding; ++pad_y)
-	{
-		uint32_t *pixel = (uint32_t *) row;
-		for (int x = 0; x < write_buffer->client_width; ++x)
-		{
-			*pixel++ = 0x00000000;
-		}
-		row += write_buffer->texture_pitch;
-	}
+
 }
 
 struct door new_door_position(struct level **current_level, struct door new_door)
@@ -119,10 +119,10 @@ void generate_level (struct level **current_level)
 	// Max w/h should always be >= 3
 	// otherwise there can be no door
 	int MIN_LEVEL_WIDTH = 3; 
-	int MIN_LEVEL_HEIGHT = 3;
+	int MIN_LEVEL_HEIGHT = 15;
 	
-	int MAX_LEVEL_WIDTH = 18;
-	int MAX_LEVEL_HEIGHT = 18;
+	int MAX_LEVEL_WIDTH = 5;
+	int MAX_LEVEL_HEIGHT = 15;
 
 	struct timeval time;
 	gettimeofday(&time, NULL);
