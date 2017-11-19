@@ -58,6 +58,7 @@ int main ()
     struct input_events zeroed_input_events;
     zeroed_input_events.keyboard_return = 0;
     zeroed_input_events.keyboard_backspace = 0;
+    zeroed_input_events.keyboard_space = 0;
     zeroed_input_events.keyboard_up = 0;
     zeroed_input_events.keyboard_down = 0;
     zeroed_input_events.keyboard_left = 0;
@@ -90,6 +91,11 @@ int main ()
                         case SDLK_BACKSPACE:
                         {
                             main_input_events.keyboard_backspace = true;
+                        } break;
+
+                        case SDLK_SPACE:
+                        {
+                            main_input_events.keyboard_space = true;
                         } break;
 
                         case SDLK_w:

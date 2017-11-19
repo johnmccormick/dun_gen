@@ -6,6 +6,7 @@ struct input_events
 {
 	bool keyboard_return;
 	bool keyboard_backspace;
+	bool keyboard_space;
 	bool keyboard_up;
 	bool keyboard_down;
 	bool keyboard_left;
@@ -49,6 +50,7 @@ struct player
 struct game_state
 {
 	bool initialised;
+	bool paused;
 	struct level *current_level;
 	struct player player_1;
 };

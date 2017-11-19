@@ -2,11 +2,9 @@
 
 void render_game(struct pixel_buffer *write_buffer, struct game_state *main_game_state)
 {
-	// Main 'render' loop
-	int padding_height = (write_buffer->client_height - (main_game_state->current_level->height * tile_size)) / 2;
 	int padding_width = (write_buffer->client_width - (main_game_state->current_level->width * tile_size)) / 2;
+	int padding_height = (write_buffer->client_height - (main_game_state->current_level->height * tile_size)) / 2;
 
-	//int left_padding = (main_game_state->player_1.x * tile_size);
 	int left_padding = ((((main_game_state->current_level->width) / 2) - main_game_state->player_1.x) * tile_size) - (tile_size / 2);
 	int right_padding = ((main_game_state->player_1.x - ((main_game_state->current_level->width) / 2)) * tile_size) + (tile_size / 2);
 
@@ -14,7 +12,7 @@ void render_game(struct pixel_buffer *write_buffer, struct game_state *main_game
 	int bottom_padding = ((main_game_state->player_1.y - ((main_game_state->current_level->height) / 2)) * tile_size) + (tile_size / 2);
 
 	uint8_t *row = (uint8_t *)write_buffer->pixels;
-	// Pad the top
+
 	for (int y = 0; y < padding_height + top_padding; ++y)
 	{
 		uint32_t *pixel = (uint32_t *) row;
@@ -24,55 +22,56 @@ void render_game(struct pixel_buffer *write_buffer, struct game_state *main_game
 		}
 		row += write_buffer->texture_pitch;
 	}
-	// Main level render
 	for (int y = 0; y < main_game_state->current_level->height; ++y)
 	{
 		for (int height_pixels = 0; height_pixels < tile_size; ++height_pixels)
 		{
-			// HORIZONTAL			
-			// Pad the left
-			uint32_t *pixel = (uint32_t *) row;
-			for (int ex = 0; ex < padding_width + left_padding; ++ex)
+			if (padding_height + top_padding + (y * tile_size) + height_pixels >= 0
+				&& padding_height + top_padding + (y * tile_size) + height_pixels < write_buffer->client_height)
 			{
-				*pixel++ = 0x00000000;
-			}
-			// Draw the level
-			for (int x = 0; x < main_game_state->current_level->width; ++x)
-			{
-				for (int width_pixels = 0; width_pixels < tile_size; ++width_pixels)
+				uint32_t *pixel = (uint32_t *) row;
+				for (int ex = 0; ex < padding_width + left_padding; ++ex)
 				{
-					// See if player is occupying tile
-					if (main_game_state->player_1.x == x && main_game_state->player_1.y == y)
-						*pixel++ = 0x000000ff;
-					else
+					*pixel++ = 0x00000000;
+				}
+				for (int x = 0; x < main_game_state->current_level->width; ++x)
+				{
+					for (int width_pixels = 0; width_pixels < tile_size; ++width_pixels)
 					{
-						if (*(main_game_state->current_level->map + (y * main_game_state->current_level->width) + x) == 1)
-							// Floor
-							*pixel++ = 0x00ffffff;
-						else if 
-							(*(main_game_state->current_level->map + (y * main_game_state->current_level->width) + x) == 2)
-							// Entrance
-							*pixel++ = 0x00999999;
-						else if 
-							(*(main_game_state->current_level->map + (y * main_game_state->current_level->width) + x) == 3)
-							// Exit
-							*pixel++ = 0x0000e600;
-						else
-							//Floor
-							*pixel++ = 0x00222222;
+						if (padding_width + left_padding + (x * tile_size) + width_pixels >= 0
+							&& padding_width + left_padding + (x * tile_size) + width_pixels < write_buffer->client_width)
+						{
+							// See if player is occupying tile
+							if (main_game_state->player_1.x == x && main_game_state->player_1.y == y)
+								*pixel++ = 0x000000ff;
+							else
+							{
+								if (*(main_game_state->current_level->map + (y * main_game_state->current_level->width) + x) == 1)
+									// Floor
+									*pixel++ = 0x00ffffff;
+								else if 
+									(*(main_game_state->current_level->map + (y * main_game_state->current_level->width) + x) == 2)
+									// Entrance
+									*pixel++ = 0x00999999;
+								else if 
+									(*(main_game_state->current_level->map + (y * main_game_state->current_level->width) + x) == 3)
+									// Exit
+									*pixel++ = 0x0000e600;
+								else
+									//Wall
+									*pixel++ = 0x00222222;
+							}
+						}
 					}
 				}
+				for (int ex = 0; ex < padding_width + right_padding; ++ex)
+				{
+					*pixel++ = 0x00000000;
+				}
+				row += write_buffer->texture_pitch;
 			}
-			// Pad the right
-			for (int ex = 0; ex < padding_width + right_padding; ++ex)
-			{
-				*pixel++ = 0x00000000;
-			}
-			// HORIZONTAL
-			row += write_buffer->texture_pitch;
 		}
 	}
-	// Pad the bottom
 	for (int y = 0; y < padding_height + bottom_padding; ++y)
 	{
 		uint32_t *pixel = (uint32_t *) row;
@@ -116,8 +115,8 @@ void generate_level (struct level **current_level)
 	int MIN_LEVEL_WIDTH = 3; 
 	int MIN_LEVEL_HEIGHT = 3;
 	
-	int MAX_LEVEL_WIDTH = 22;
-	int MAX_LEVEL_HEIGHT = 12;
+	int MAX_LEVEL_WIDTH = 18;
+	int MAX_LEVEL_HEIGHT = 18;
 
 	struct timeval time;
 	gettimeofday(&time, NULL);
@@ -234,11 +233,6 @@ void move_player (struct game_state *main_game_state, int x, int y)
 void main_game_loop (struct pixel_buffer *write_buffer, void *game_memory, struct input_events input)
 {
 
-	if (write_buffer)
-	{
-
-	}
-
 	struct game_state *main_game_state = game_memory;
 
 	if (!main_game_state->initialised)
@@ -253,45 +247,57 @@ void main_game_loop (struct pixel_buffer *write_buffer, void *game_memory, struc
 		main_game_state->initialised = true;
 	}
 
-	if (input.keyboard_up)
+	if (input.keyboard_space)
 	{
-		move_player(main_game_state, 0, -1);
-	}
-	if (input.keyboard_down)
-	{
-		move_player(main_game_state, 0, 1);
-	}
-	if (input.keyboard_left)
-	{
-		move_player(main_game_state, -1, 0);
-	}
-	if (input.keyboard_right)
-	{
-		move_player(main_game_state, 1, 0);
+		if (main_game_state->paused == true)
+			main_game_state->paused = false;
+		else
+			main_game_state->paused = true;
 	}
 
-	// Move to next/prev level
-	if (main_game_state->player_1.has_moved)
+	if (!main_game_state->paused)
 	{
-		if ((main_game_state->player_1.x == main_game_state->current_level->exit.x) && (main_game_state->player_1.y == main_game_state->current_level->exit.y))
+
+		if (input.keyboard_up)
 		{
-			next_level(&(main_game_state->current_level));
-			
-			main_game_state->player_1.x = main_game_state->current_level->entrance.x;
-			main_game_state->player_1.y = main_game_state->current_level->entrance.y;
-
-			main_game_state->player_1.has_moved = false;
-		} 
-		else if ((main_game_state->player_1.x == main_game_state->current_level->entrance.x) && (main_game_state->player_1.y == main_game_state->current_level->entrance.y))
-		{
-			prev_level(&(main_game_state->current_level));
-			
-			main_game_state->player_1.x = main_game_state->current_level->exit.x;
-			main_game_state->player_1.y = main_game_state->current_level->exit.y;
-
-			main_game_state->player_1.has_moved = false;
+			move_player(main_game_state, 0, -1);
 		}
-	}
+		if (input.keyboard_down)
+		{
+			move_player(main_game_state, 0, 1);
+		}
+		if (input.keyboard_left)
+		{
+			move_player(main_game_state, -1, 0);
+		}
+		if (input.keyboard_right)
+		{
+			move_player(main_game_state, 1, 0);
+		}
 
-	render_game(write_buffer, main_game_state);
+		// Move to next/prev level
+		if (main_game_state->player_1.has_moved)
+		{
+			if ((main_game_state->player_1.x == main_game_state->current_level->exit.x) && (main_game_state->player_1.y == main_game_state->current_level->exit.y))
+			{
+				next_level(&(main_game_state->current_level));
+				
+				main_game_state->player_1.x = main_game_state->current_level->entrance.x;
+				main_game_state->player_1.y = main_game_state->current_level->entrance.y;
+
+				main_game_state->player_1.has_moved = false;
+			} 
+			else if ((main_game_state->player_1.x == main_game_state->current_level->entrance.x) && (main_game_state->player_1.y == main_game_state->current_level->entrance.y))
+			{
+				prev_level(&(main_game_state->current_level));
+				
+				main_game_state->player_1.x = main_game_state->current_level->exit.x;
+				main_game_state->player_1.y = main_game_state->current_level->exit.y;
+
+				main_game_state->player_1.has_moved = false;
+			}
+		}
+
+		render_game(write_buffer, main_game_state);
+	}
 }
