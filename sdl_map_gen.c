@@ -117,6 +117,26 @@ int main ()
                         {
                             main_input_events.keyboard_right = true;
                         } break;
+
+                        case SDLK_UP:
+                        {
+                            main_input_events.keyboard_up = true;
+                        } break;
+
+                        case SDLK_LEFT:
+                        {
+                            main_input_events.keyboard_left = true;
+                        } break;
+
+                        case SDLK_DOWN:
+                        {
+                            main_input_events.keyboard_down = true;
+                        } break;
+
+                        case SDLK_RIGHT:
+                        {
+                            main_input_events.keyboard_right = true;
+                        } break;
                     }
                 } break;
             }

@@ -1,17 +1,8 @@
 #include "map_gen.h"
 #include "map_math.c"
 
-void render_game(struct pixel_buffer *buffer, struct game_state *game)
+void render_level(struct pixel_buffer *buffer, struct game_state *game)
 {
-	int total_pixels = buffer->client_height * buffer->texture_pitch;
-
-	// Clear background
-	uint8_t *byte = (uint8_t *)buffer->pixels;
-	for (int i = 0; i < total_pixels; ++i)
-	{
-		*byte++ = 0x00000000;
-	}
-
 	int half_client_width = buffer->client_width / 2;	
 	int half_client_height = buffer->client_height / 2;
 
@@ -70,7 +61,7 @@ void render_game(struct pixel_buffer *buffer, struct game_state *game)
 				else if 
 					(*(game->current_level->map + ((y / tile_size) * game->current_level->width) + (x / tile_size)) == 2)
 					// Entrance
-					*pixel++ = 0x00999999;
+					*pixel++ = 0x004dff4d;
 				else if 
 					(*(game->current_level->map + ((y  / tile_size) * game->current_level->width) + (x / tile_size)) == 3)
 					// Exit
@@ -83,6 +74,18 @@ void render_game(struct pixel_buffer *buffer, struct game_state *game)
 		p_location += buffer->texture_pitch;
 	}
 
+}
+
+void clear_backround (struct pixel_buffer *buffer)
+{
+	int total_pixels = buffer->client_height * buffer->texture_pitch;
+
+	// Clear background
+	uint8_t *byte = (uint8_t *)buffer->pixels;
+	for (int i = 0; i < total_pixels; ++i)
+	{
+		*byte++ = 0x00000000;
+	}
 }
 
 struct door new_door_position(struct level **current_level, struct door new_door)
@@ -217,32 +220,27 @@ void move_player (struct game_state *game, int x, int y)
 
 			game->player_1.x = game->current_level->entrance.x;
 			game->player_1.y = game->current_level->entrance.y;
-
-			game->player_1.has_moved = false;
 		}
 		// If on entrance
 		else if ((game->player_1.x == game->current_level->entrance.x) && (game->player_1.y == game->current_level->entrance.y))
 		{
 			prev_level(&(game->current_level));
-			
+
 			game->player_1.x = game->current_level->exit.x;
 			game->player_1.y = game->current_level->exit.y;
-
-			game->player_1.has_moved = false;
 		}
 	}
 }
 
 void main_game_loop (struct pixel_buffer *buffer, void *game_memory, struct input_events input)
 {
-
 	struct game_state *game = game_memory;
 
 	if (!game->initialised)
 	{
 		game->current_level = malloc(sizeof(struct level));
 		game->current_level->prev_level = NULL;
-		generate_level(&(game->current_level));
+		generate_level(&game->current_level);
 
 		game->player_1.x = game->current_level->width / 2;
 		game->player_1.y = game->current_level->height / 2;
@@ -260,7 +258,6 @@ void main_game_loop (struct pixel_buffer *buffer, void *game_memory, struct inpu
 
 	if (!game->paused)
 	{
-
 		if (input.keyboard_up)
 		{
 			move_player(game, 0, -1);
@@ -278,29 +275,19 @@ void main_game_loop (struct pixel_buffer *buffer, void *game_memory, struct inpu
 			move_player(game, 1, 0);
 		}
 
-		// Move to next/prev level
-		if (game->player_1.has_moved)
+		// If on entrance/exit tile
+		/*
+		if ((game->player_1.x == game->current_level->exit.x) && (game->player_1.y == game->current_level->exit.y))
 		{
-			if ((game->player_1.x == game->current_level->exit.x) && (game->player_1.y == game->current_level->exit.y))
-			{
-				next_level(&(game->current_level));
-				
-				game->player_1.x = game->current_level->entrance.x;
-				game->player_1.y = game->current_level->entrance.y;
+		
+		} 
+		else if ((game->player_1.x == game->current_level->entrance.x) && (game->player_1.y == game->current_level->entrance.y))
+		{
 
-				game->player_1.has_moved = false;
-			} 
-			else if ((game->player_1.x == game->current_level->entrance.x) && (game->player_1.y == game->current_level->entrance.y))
-			{
-				prev_level(&(game->current_level));
-				
-				game->player_1.x = game->current_level->exit.x;
-				game->player_1.y = game->current_level->exit.y;
-
-				game->player_1.has_moved = false;
-			}
 		}
+		*/
 
-		render_game(buffer, game);
+		clear_backround(buffer);
+		render_level(buffer, game);
 	}
 }
