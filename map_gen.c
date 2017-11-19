@@ -2,18 +2,24 @@
 
 void render_game(struct pixel_buffer *write_buffer, struct game_state *main_game_state)
 {
-	int padding_width = (write_buffer->client_width - (main_game_state->current_level->width * tile_size)) / 2;
-	int padding_height = (write_buffer->client_height - (main_game_state->current_level->height * tile_size)) / 2;
+	int half_client_width = write_buffer->client_width / 2;
+	int half_client_height = write_buffer->client_height / 2;
 
-	int left_padding = ((((main_game_state->current_level->width) / 2) - main_game_state->player_1.x) * tile_size) - (tile_size / 2);
-	int right_padding = ((main_game_state->player_1.x - ((main_game_state->current_level->width) / 2)) * tile_size) + (tile_size / 2);
+	int half_tiled_level_width = tile_size * main_game_state->current_level->width / 2;
+	int half_tiled_level_height = tile_size * main_game_state->current_level->height / 2;
 
-	int top_padding = ((((main_game_state->current_level->height) / 2) - main_game_state->player_1.y) * tile_size) - (tile_size / 2);
-	int bottom_padding = ((main_game_state->player_1.y - ((main_game_state->current_level->height) / 2)) * tile_size) + (tile_size / 2);
+	int player_tiled_x = (main_game_state->player_1.x * tile_size) + tile_size / 2;
+	int player_tiled_y = (main_game_state->player_1.y * tile_size) + tile_size / 2;
+
+	int left_padding = half_client_width - half_tiled_level_width + half_tiled_level_width - player_tiled_x;
+	int right_padding = half_client_width - half_tiled_level_width - half_tiled_level_width + player_tiled_x;
+
+	int top_padding = half_client_height - half_tiled_level_height + half_tiled_level_height - player_tiled_y;
+	int bottom_padding = half_client_height - half_tiled_level_height - half_tiled_level_height + player_tiled_y;
 
 	uint8_t *row = (uint8_t *)write_buffer->pixels;
 
-	for (int y = 0; y < padding_height + top_padding; ++y)
+	for (int pad_y = 0; pad_y < top_padding; ++pad_y)
 	{
 		uint32_t *pixel = (uint32_t *) row;
 		for (int x = 0; x < write_buffer->client_width; ++x)
@@ -26,11 +32,11 @@ void render_game(struct pixel_buffer *write_buffer, struct game_state *main_game
 	{
 		for (int height_pixels = 0; height_pixels < tile_size; ++height_pixels)
 		{
-			if (padding_height + top_padding + (y * tile_size) + height_pixels >= 0
-				&& padding_height + top_padding + (y * tile_size) + height_pixels < write_buffer->client_height)
+			if (top_padding + (y * tile_size) + height_pixels >= 0
+				&& top_padding + (y * tile_size) + height_pixels < write_buffer->client_height)
 			{
 				uint32_t *pixel = (uint32_t *) row;
-				for (int ex = 0; ex < padding_width + left_padding; ++ex)
+				for (int pad_x = 0; pad_x < left_padding; ++pad_x)
 				{
 					*pixel++ = 0x00000000;
 				}
@@ -38,8 +44,8 @@ void render_game(struct pixel_buffer *write_buffer, struct game_state *main_game
 				{
 					for (int width_pixels = 0; width_pixels < tile_size; ++width_pixels)
 					{
-						if (padding_width + left_padding + (x * tile_size) + width_pixels >= 0
-							&& padding_width + left_padding + (x * tile_size) + width_pixels < write_buffer->client_width)
+						if (left_padding + (x * tile_size) + width_pixels >= 0
+							&& left_padding + (x * tile_size) + width_pixels < write_buffer->client_width)
 						{
 							// See if player is occupying tile
 							if (main_game_state->player_1.x == x && main_game_state->player_1.y == y)
@@ -64,7 +70,7 @@ void render_game(struct pixel_buffer *write_buffer, struct game_state *main_game
 						}
 					}
 				}
-				for (int ex = 0; ex < padding_width + right_padding; ++ex)
+				for (int pad_x = 0; pad_x < right_padding; ++pad_x)
 				{
 					*pixel++ = 0x00000000;
 				}
@@ -72,7 +78,7 @@ void render_game(struct pixel_buffer *write_buffer, struct game_state *main_game
 			}
 		}
 	}
-	for (int y = 0; y < padding_height + bottom_padding; ++y)
+	for (int pad_y = 0; pad_y < bottom_padding; ++pad_y)
 	{
 		uint32_t *pixel = (uint32_t *) row;
 		for (int x = 0; x < write_buffer->client_width; ++x)
