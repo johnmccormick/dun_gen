@@ -51,6 +51,7 @@ struct game_state
 {
 	bool initialised;
 	bool paused;
+	int render_next_level;
 	struct level *current_level;
 	struct player player_1;
 };

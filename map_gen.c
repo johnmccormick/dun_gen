@@ -1,17 +1,14 @@
 #include "map_gen.h"
 #include "map_math.c"
 
-void render_level(struct pixel_buffer *buffer, struct game_state *game)
+void render_level(struct pixel_buffer *buffer, struct game_state *game, struct level *level_to_render)
 {
-	int half_client_width = buffer->client_width / 2;	
-	int half_client_height = buffer->client_height / 2;
-
 	int player_tiled_x = (game->player_1.x * tile_size) + tile_size / 2;
 	int player_tiled_y = (game->player_1.y * tile_size) + tile_size / 2;
 
 	uint8_t *p_location = (uint8_t *)buffer->pixels;
-	int px_offset = ((half_client_width - player_tiled_x) * buffer->bytes_per_pixel);
-	int py_offset = ((half_client_height - player_tiled_y) * buffer->texture_pitch);
+	int px_offset = ((buffer->client_width / 2 - player_tiled_x) * buffer->bytes_per_pixel);
+	int py_offset = ((buffer->client_height / 2 - player_tiled_y) * buffer->texture_pitch);
 
 	if (px_offset >= 0)
 		p_location += px_offset;
@@ -21,11 +18,11 @@ void render_level(struct pixel_buffer *buffer, struct game_state *game)
 	int x_start;
 	int x_end;
 	
-	x_start = make_neg_zero(player_tiled_x - half_client_width);
+	x_start = make_neg_zero(player_tiled_x - buffer->client_width / 2);
 
-	if (x_start + buffer->client_width - make_neg_zero(px_offset / buffer->bytes_per_pixel) > game->current_level->width * tile_size)
+	if (x_start + buffer->client_width - make_neg_zero(px_offset / buffer->bytes_per_pixel) > level_to_render->width * tile_size)
 	{
-		x_end = game->current_level->width * tile_size;
+		x_end = level_to_render->width * tile_size;
 	}
 	else
 	{
@@ -35,11 +32,11 @@ void render_level(struct pixel_buffer *buffer, struct game_state *game)
 	int y_start;
 	int y_end;
 	
-	y_start = make_neg_zero(player_tiled_y - half_client_height);
+	y_start = make_neg_zero(player_tiled_y - buffer->client_height / 2);
 
-	if (y_start + buffer->client_height - make_neg_zero(py_offset / buffer->texture_pitch) > game->current_level->height * tile_size)
+	if (y_start + buffer->client_height - make_neg_zero(py_offset / buffer->texture_pitch) > level_to_render->height * tile_size)
 	{
-		y_end = game->current_level->height * tile_size;
+		y_end = level_to_render->height * tile_size;
 	}
 	else
 	{
@@ -55,15 +52,15 @@ void render_level(struct pixel_buffer *buffer, struct game_state *game)
 				*pixel++ = 0x000000ff;
 			else
 			{
-				if (*(game->current_level->map + ((y / tile_size) * game->current_level->width) + (x / tile_size)) == 1)
+				if (*(level_to_render->map + ((y / tile_size) * level_to_render->width) + (x / tile_size)) == 1)
 					// Floor
 					*pixel++ = 0x00ffffff;
 				else if 
-					(*(game->current_level->map + ((y / tile_size) * game->current_level->width) + (x / tile_size)) == 2)
+					(*(level_to_render->map + ((y / tile_size) * level_to_render->width) + (x / tile_size)) == 2)
 					// Entrance
 					*pixel++ = 0x004dff4d;
 				else if 
-					(*(game->current_level->map + ((y  / tile_size) * game->current_level->width) + (x / tile_size)) == 3)
+					(*(level_to_render->map + ((y  / tile_size) * level_to_render->width) + (x / tile_size)) == 3)
 					// Exit
 					*pixel++ = 0x0000e600;
 				else
@@ -114,7 +111,7 @@ struct door new_door_position(struct level **current_level, struct door new_door
 	return new_door;
 }
 
-void generate_level (struct level **current_level)
+void generate_level (struct level **new_level, struct level **prev_level)
 {
 	// Max w/h should always be >= 3
 	// otherwise there can be no door
@@ -128,72 +125,52 @@ void generate_level (struct level **current_level)
 	gettimeofday(&time, NULL);
 	srand(time.tv_usec);
 
-	(*current_level)->next_level = NULL;
+	(*new_level) = malloc(sizeof(struct level));
 
-	(*current_level)->width = (rand() % (MAX_LEVEL_WIDTH - MIN_LEVEL_WIDTH + 1)) + MIN_LEVEL_WIDTH;
-	(*current_level)->height = (rand() % (MAX_LEVEL_HEIGHT - MIN_LEVEL_HEIGHT + 1)) + MIN_LEVEL_HEIGHT;
+	(*new_level)->next_level = NULL;
 
-	(*current_level)->map = malloc(sizeof(int) * (*current_level)->width * (*current_level)->height);
-	memset((*current_level)->map, 0, sizeof(int) * (*current_level)->width * (*current_level)->height);
+	if (prev_level)
+		(*new_level)->prev_level = *prev_level;
+	else
+		(*new_level)->prev_level = NULL;
 
-	for (int y = 0; y < (*current_level)->height; ++y)
+	(*new_level)->width = (rand() % (MAX_LEVEL_WIDTH - MIN_LEVEL_WIDTH + 1)) + MIN_LEVEL_WIDTH;
+	(*new_level)->height = (rand() % (MAX_LEVEL_HEIGHT - MIN_LEVEL_HEIGHT + 1)) + MIN_LEVEL_HEIGHT;
+
+	(*new_level)->map = malloc(sizeof(int) * (*new_level)->width * (*new_level)->height);
+	memset((*new_level)->map, 0, sizeof(int) * (*new_level)->width * (*new_level)->height);
+
+	for (int y = 0; y < (*new_level)->height; ++y)
 	{
-		for (int x = 0; x < (*current_level)->width; ++x)
+		for (int x = 0; x < (*new_level)->width; ++x)
 		{
 			// If a wall
-			if (x == 0 || x == (*current_level)->width - 1 || y == 0 || y == (*current_level)->height - 1)
-				*((*current_level)->map + (y * (*current_level)->width) + x) = 0;
+			if (x == 0 || x == (*new_level)->width - 1 || y == 0 || y == (*new_level)->height - 1)
+				*((*new_level)->map + (y * (*new_level)->width) + x) = 0;
 			// Otherwise floor (other elements filled in later)
 			else	
-				*((*current_level)->map + (y * (*current_level)->width) + x) = 1;
+				*((*new_level)->map + (y * (*new_level)->width) + x) = 1;
 		}
 	}
 
-	if ((*current_level)->prev_level != NULL)
+	if (prev_level != NULL)
 	{
-		(*current_level)->entrance.side = ((*current_level)->prev_level->exit.side + 2) % 4;
+		(*new_level)->entrance.side = ((*prev_level)->exit.side + 2) % 4;
 
-		(*current_level)->entrance = new_door_position(current_level, (*current_level)->entrance);
-		*((*current_level)->map + ((*current_level)->width * (*current_level)->entrance.y) + ((*current_level)->entrance.x)) = 2;
+		(*new_level)->entrance = new_door_position(new_level, (*new_level)->entrance);
+		*((*new_level)->map + ((*new_level)->width * (*new_level)->entrance.y) + ((*new_level)->entrance.x)) = 2;
 
 		do {
-			(*current_level)->exit.side = (rand() / (RAND_MAX / 4));
-		} while ((*current_level)->exit.side == (*current_level)->entrance.side);
+			(*new_level)->exit.side = (rand() / (RAND_MAX / 4));
+		} while ((*new_level)->exit.side == (*new_level)->entrance.side);
 	}
 	else
 	{
-		(*current_level)->exit.side = (rand() / (RAND_MAX / 4));
+		(*new_level)->exit.side = (rand() / (RAND_MAX / 4));
 	}
 
-	(*current_level)->exit = new_door_position(current_level, (*current_level)->exit);
-	*((*current_level)->map + ((*current_level)->width * (*current_level)->exit.y) + ((*current_level)->exit.x)) = 3;
-}
-
-void next_level (struct level **current_level)
-{
-	if ((*current_level)->next_level == NULL)
-	{
-		struct level *this_level = *current_level;
-		void *next_level = malloc(sizeof(struct level));
-		*current_level = next_level;
-		(*current_level)->prev_level = this_level;
-
-		generate_level(current_level);
-	}
-	else
-	{
-		*current_level = (*current_level)->next_level;
-	}
-}
-
-void prev_level (struct level **current_level)
-{
-	if ((*current_level)->prev_level != NULL)
-	{
-		struct level *this_level = *current_level;
-		*current_level = (*current_level)->prev_level;
-		(*current_level)->next_level = this_level;
-	}
+	(*new_level)->exit = new_door_position(new_level, (*new_level)->exit);
+	*((*new_level)->map + ((*new_level)->width * (*new_level)->exit.y) + ((*new_level)->exit.x)) = 3;
 }
 
 void move_player (struct game_state *game, int x, int y)
@@ -216,7 +193,18 @@ void move_player (struct game_state *game, int x, int y)
 		// If on exit
 		if ((game->player_1.x == game->current_level->exit.x) && (game->player_1.y == game->current_level->exit.y))
 		{
-			next_level(&(game->current_level));
+			if (game->current_level->next_level == NULL)
+			{
+				generate_level(&game->current_level->next_level, &game->current_level);
+
+				struct level *last_level = game->current_level;
+				game->current_level = game->current_level->next_level;
+				game->current_level->prev_level = last_level;
+			}
+			else
+			{
+				game->current_level = game->current_level->next_level;
+			}
 
 			game->player_1.x = game->current_level->entrance.x;
 			game->player_1.y = game->current_level->entrance.y;
@@ -224,7 +212,12 @@ void move_player (struct game_state *game, int x, int y)
 		// If on entrance
 		else if ((game->player_1.x == game->current_level->entrance.x) && (game->player_1.y == game->current_level->entrance.y))
 		{
-			prev_level(&(game->current_level));
+			if (game->current_level->prev_level != NULL)
+			{
+				struct level *last_level = game->current_level;
+				game->current_level = game->current_level->prev_level;
+				game->current_level->next_level = last_level;
+			}
 
 			game->player_1.x = game->current_level->exit.x;
 			game->player_1.y = game->current_level->exit.y;
@@ -238,14 +231,13 @@ void main_game_loop (struct pixel_buffer *buffer, void *game_memory, struct inpu
 
 	if (!game->initialised)
 	{
-		game->current_level = malloc(sizeof(struct level));
-		game->current_level->prev_level = NULL;
-		generate_level(&game->current_level);
+		generate_level(&game->current_level, NULL);
 
 		game->player_1.x = game->current_level->width / 2;
 		game->player_1.y = game->current_level->height / 2;
 
 		game->initialised = true;
+		game->render_next_level = 0;
 	}
 
 	if (input.keyboard_space)
@@ -276,18 +268,20 @@ void main_game_loop (struct pixel_buffer *buffer, void *game_memory, struct inpu
 		}
 
 		// If on entrance/exit tile
-		/*
 		if ((game->player_1.x == game->current_level->exit.x) && (game->player_1.y == game->current_level->exit.y))
 		{
-		
+			game->render_next_level = 1;
 		} 
+		/*
 		else if ((game->player_1.x == game->current_level->entrance.x) && (game->player_1.y == game->current_level->entrance.y))
 		{
-
+			//game->render_prev_level = 1;
 		}
 		*/
 
 		clear_backround(buffer);
-		render_level(buffer, game);
+		render_level(buffer, game, game->current_level);
+		//if (game->render_next_level)
+			//render_level(buffer, game, game->current_level->next_level);
 	}
 }
