@@ -25,6 +25,8 @@ int main ()
         SDL_Quit();
     }
 
+    SDL_ShowCursor(SDL_DISABLE);
+
     SDL_Renderer *renderer = SDL_CreateRenderer(window, -1, 
         SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
     if (renderer == NULL){

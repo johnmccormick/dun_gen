@@ -2,12 +2,6 @@
 #include <string.h>
 #include <sys/time.h>
 
-struct coord_offset
-{
-	int x;
-	int y;
-};
-
 struct input_events
 {
 	bool keyboard_return;
@@ -26,6 +20,12 @@ struct pixel_buffer
     int client_height;
     int bytes_per_pixel;
     int texture_pitch;
+};
+
+struct coord_offset
+{
+	int x;
+	int y;
 };
 
 struct door
@@ -52,7 +52,6 @@ struct player
 {
 	int x;
 	int y;
-	bool has_moved;
 };
 
 struct game_state
