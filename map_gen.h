@@ -2,6 +2,12 @@
 #include <string.h>
 #include <sys/time.h>
 
+struct coord_offset
+{
+	int x;
+	int y;
+};
+
 struct input_events
 {
 	bool keyboard_return;
@@ -38,6 +44,8 @@ struct level
 	struct door exit;
 	struct level *prev_level;
 	struct level *next_level;
+	struct coord_offset next_offset;
+	struct coord_offset prev_offset;
 };
 
 struct player
@@ -51,13 +59,14 @@ struct game_state
 {
 	bool initialised;
 	bool paused;
-	int render_next_level;
 	struct level *current_level;
 	struct player player_1;
+	int render_next_level;
+	int render_prev_level;
 };
 
 
 int tile_size = 40;
 
 char sides[4] = "NESW";	
-char door_types[4] = "01EX";	
+char door_types[4] = "01EX";
