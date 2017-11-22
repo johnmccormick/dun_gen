@@ -30,7 +30,6 @@ struct coord_offset
 
 struct door
 {
-	int side;
 	int x;
 	int y;
 };

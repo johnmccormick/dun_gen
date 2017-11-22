@@ -99,18 +99,18 @@ void render_game(struct pixel_buffer *buffer, struct game_state *game)
 		levels_rendered++;
 	}
 
-	uint8_t *buffer_pointer = (uint8_t *)buffer->pixels;
-	buffer_pointer += (((buffer->client_height / 2) - (tile_size / 2)) * buffer->texture_pitch)
+	uint8_t *player_pointer = (uint8_t *)buffer->pixels;
+	player_pointer += (((buffer->client_height / 2) - (tile_size / 2)) * buffer->texture_pitch)
 					+ (((buffer->client_width / 2) - (tile_size / 2)) * buffer->bytes_per_pixel);
 
 	for (int y = 0; y < tile_size; ++y)
 	{
-		uint32_t *player_pointer = (uint32_t *)buffer_pointer;
+		uint32_t *pixel = (uint32_t *)player_pointer;
 		for (int x = 0; x < tile_size; ++x)
 		{
-			*player_pointer++ = 0x000000ff;
+			*pixel++ = 0x000000ff;
 		}
-		buffer_pointer += buffer->texture_pitch;
+		player_pointer += buffer->texture_pitch;
 	}
 
 	if (game->player_1.x_transition > 0)
@@ -143,32 +143,6 @@ void clear_backround (struct pixel_buffer *buffer)
 	}
 }
 
-struct door new_door_position(struct level *current_level, struct door new_door)
-{
-	// Give the door a 1 dimensional position that sits between 
-	// the level's width and height on specified wall.
-	// North and South are 0 and 2
-	if (new_door.side % 2 == 0)
-	{
-		new_door.x = (rand() / (RAND_MAX / (current_level->width - 2))) + 1;
-		if (new_door.side == 0)
-			new_door.y = 0;
-		if (new_door.side == 2)
-			new_door.y = current_level->height - 1;
-	} 
-	// East and West are 1 and 3
-	else
-	{
-		new_door.y = (rand() / (RAND_MAX / (current_level->height - 2))) + 1;
-		if (new_door.side == 1)
-			new_door.x = current_level->width - 1;
-		if (new_door.side == 3)
-			new_door.x = 0;
-	}
-
-	return new_door;
-}
-
 void generate_level (struct level **new_level, struct level **prev_level)
 {
 	if (*new_level == NULL)
@@ -196,6 +170,7 @@ void generate_level (struct level **new_level, struct level **prev_level)
 		}
 		else
 		{
+			// First level created
 			(*new_level)->prev_level = NULL;
 			(*new_level)->render_transition = level_transition_time;
 		}
@@ -210,32 +185,95 @@ void generate_level (struct level **new_level, struct level **prev_level)
 		{
 			for (int x = 0; x < (*new_level)->width; ++x)
 			{
-				// If a wall
+				// On level boundary, make wall tile (0)
 				if (x == 0 || x == (*new_level)->width - 1 || y == 0 || y == (*new_level)->height - 1)
 					*((*new_level)->map + (y * (*new_level)->width) + x) = 0;
-				// Otherwise floor (other elements filled in later)
+				// Otherwise, it is floor
 				else	
 					*((*new_level)->map + (y * (*new_level)->width) + x) = 1;
 			}
 		}
 
+		int new_exit_side = -1;
 		if (prev_level)
-		{	
-			(*new_level)->entrance.side = ((*prev_level)->exit.side + 2) % 4;
+		{	// If a standard level (i.e. not the first level)
 
-			(*new_level)->entrance = new_door_position(*new_level, (*new_level)->entrance);
+			//These should never overlap...
+			int new_entrance_side = -1;
+			if ((*prev_level)->exit.x == 0)
+			{
+				(*new_level)->entrance.x = (*new_level)->width - 1;
+				(*new_level)->entrance.y = (rand() % ((*new_level)->height - 2)) + 1;
+				new_entrance_side = 1;
+			}
+			else if ((*prev_level)->exit.x == (*prev_level)->width - 1)
+			{
+				(*new_level)->entrance.x = 0;
+				(*new_level)->entrance.y = (rand() % ((*new_level)->height - 2)) + 1;
+				new_entrance_side = 0;
+			}
+			else if ((*prev_level)->exit.y == 0)
+			{
+				(*new_level)->entrance.y = (*new_level)->height - 1;
+				(*new_level)->entrance.x = (rand() % ((*new_level)->width - 2)) + 1;
+				new_entrance_side = 3;
+			}
+			else if ((*prev_level)->exit.y == (*prev_level)->height - 1)
+			{
+				(*new_level)->entrance.y = 0;
+				(*new_level)->entrance.x = (rand() % ((*new_level)->width - 2)) + 1;
+				new_entrance_side = 2;
+			}
+			else
+			{
+				printf("Could not dermine entrance side of previous level\n");
+			}
+
+			// Overwrite wall tile with entrance tile
 			*((*new_level)->map + ((*new_level)->width * (*new_level)->entrance.y) + ((*new_level)->entrance.x)) = 2;
 
-			do {
-				(*new_level)->exit.side = (rand() / (RAND_MAX / 4));
-			} while ((*new_level)->exit.side == (*new_level)->entrance.side);
+			if (new_entrance_side >= 0 && new_entrance_side < 4)
+			{
+				do {
+					new_exit_side = (rand() / (RAND_MAX / 4));
+				} while (new_exit_side == new_entrance_side);
+			}
+			else
+			{
+				printf("Recieved bad entrance side\n");
+			}
+		}
+		else
+		{	// For use with first level
+			new_exit_side = (rand() / (RAND_MAX / 4));
+		}
+
+		if (new_exit_side == 0)
+		{
+			(*new_level)->exit.x = 0;
+			(*new_level)->exit.y = (rand() % ((*new_level)->height - 2)) + 1;
+		}
+		else if (new_exit_side == 1)
+		{
+			(*new_level)->exit.x = (*new_level)->width - 1;
+			(*new_level)->exit.y = (rand() % ((*new_level)->height - 2)) + 1;
+		}
+		else if (new_exit_side == 2)
+		{
+			(*new_level)->exit.y = 0;
+			(*new_level)->exit.x = (rand() % ((*new_level)->width - 2)) + 1;
+		}
+		else if (new_exit_side == 3)
+		{
+			(*new_level)->exit.y = (*new_level)->height - 1;
+			(*new_level)->exit.x = (rand() % ((*new_level)->width - 2)) + 1;
 		}
 		else
 		{
-			(*new_level)->exit.side = (rand() / (RAND_MAX / 4));
+			printf("Recieved bad exit side\n");
 		}
 
-		(*new_level)->exit = new_door_position(*new_level, (*new_level)->exit);
+		// Overwrite wall tile with exit tile
 		*((*new_level)->map + ((*new_level)->width * (*new_level)->exit.y) + ((*new_level)->exit.x)) = 3;
 	}
 	else
