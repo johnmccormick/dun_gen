@@ -46,6 +46,7 @@ struct level
 	struct level *next_level;
 	struct coord_offset next_offset;
 	struct coord_offset prev_offset;
+	int render_transition;
 };
 
 struct player
@@ -64,8 +65,5 @@ struct game_state
 	int render_prev_level;
 };
 
-
 int tile_size = 40;
-
-char sides[4] = "NESW";	
-char door_types[4] = "01EX";
+int transition_time = 60;
