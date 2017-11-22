@@ -4,8 +4,11 @@
 void render_game(struct pixel_buffer *buffer, struct game_state *game)
 {
 	// Converts player map coordinate to centered position in terms of pixels
-	int player_position_x = (game->player_1.x * tile_size) + tile_size / 2;
-	int player_position_y = (game->player_1.y * tile_size) + tile_size / 2;
+	int player_1_x_transition_offset = game->player_1.x_transition * (tile_size / player_transition_time);
+	int player_1_y_transition_offset = game->player_1.y_transition * (tile_size / player_transition_time);
+
+	int player_position_x = (game->player_1.x * tile_size) - player_1_x_transition_offset + tile_size / 2;
+	int player_position_y = (game->player_1.y * tile_size) - player_1_y_transition_offset + tile_size / 2;
 
 	int levels_to_render = 1;
 	int levels_rendered = 0;
@@ -19,26 +22,23 @@ void render_game(struct pixel_buffer *buffer, struct game_state *game)
 		int level_offset_x = 0;
 		int level_offset_y = 0;
 
-		bool render_player = 1;
-
 		if (game->current_level->next_level != NULL && game->render_next_level != 0)
 		{
 			level_to_render = game->current_level->next_level;
 			level_offset_x = (game->current_level->next_offset.x * tile_size);
 			level_offset_y = (game->current_level->next_offset.y * tile_size);
-			render_player = 0;
 		}
 		else if (game->current_level->prev_level != NULL && game->render_prev_level != 0)
 		{
 			level_to_render = game->current_level->prev_level;
 			level_offset_x = (game->current_level->prev_offset.x * tile_size);
 			level_offset_y = (game->current_level->prev_offset.y * tile_size);
-			render_player = 0;
 		}
 
-		float render_gradient = ((float)level_to_render->render_transition / (float)transition_time);
+		float level_render_gradient = ((float)level_to_render->render_transition / (float)level_transition_time);
 
 		uint8_t *buffer_pointer = (uint8_t *)buffer->pixels;
+
 		int buffer_x_offset = (((buffer->client_width / 2) - player_position_x + level_offset_x) * buffer->bytes_per_pixel);
 		int buffer_y_offset = (((buffer->client_height / 2) - player_position_y + level_offset_y) * buffer->texture_pitch);
 
@@ -59,34 +59,25 @@ void render_game(struct pixel_buffer *buffer, struct game_state *game)
 			uint32_t *pixel = (uint32_t *) buffer_pointer;
 			for (int x = first_tile_x; x < last_tile_x; ++x)
 			{
-				// If pixel == relative location of a player tile...
-				if (render_player && game->player_1.x == x / tile_size && game->player_1.y == y / tile_size)
-					*pixel++ = 0x000000ff;
-				else
-				{
-					// Otherwise, what map tile is pixel on...											// Floor
-					if (*(level_to_render->map + ((y / tile_size) * level_to_render->width) + (x / tile_size)) == 1)
-					{
-						*pixel++ = (uint8_t)(render_gradient * 0xff) << 16 | (uint8_t)(render_gradient * 0xff) << 8 | (uint8_t)(render_gradient * 0xff);
-					}
-					else if  																			// Wall
-						(*(level_to_render->map + ((y / tile_size) * level_to_render->width) + (x / tile_size)) == 0)
-						*pixel++ = (uint8_t)(render_gradient * 0x22) << 16 | (uint8_t)(render_gradient * 0x22) << 8 | (uint8_t)(render_gradient * 0x22);
-					else if 														 					// Entrance
-						(*(level_to_render->map + ((y / tile_size) * level_to_render->width) + (x / tile_size)) == 2)
-						*pixel++ = (uint8_t)(render_gradient * 0xff) << 16 | (uint8_t)(render_gradient * 0xff) << 8 | (uint8_t)(render_gradient * 0xff);
-					else if 																			// Exit
-						(*(level_to_render->map + ((y  / tile_size) * level_to_render->width) + (x / tile_size)) == 3)
-						*pixel++ = (uint8_t)(render_gradient * 0xff) << 16 | (uint8_t)(render_gradient * 0xff) << 8 | (uint8_t)(render_gradient * 0xff);
-				}
+				// Otherwise, what map tile is pixel on...											// Floor
+				if (*(level_to_render->map + ((y / tile_size) * level_to_render->width) + (x / tile_size)) == 1)
+					*pixel++ = (uint8_t)(level_render_gradient * 0xff) << 16 | (uint8_t)(level_render_gradient * 0xff) << 8 | (uint8_t)(level_render_gradient * 0xff);
+				else if  																			// Wall
+					(*(level_to_render->map + ((y / tile_size) * level_to_render->width) + (x / tile_size)) == 0)
+					*pixel++ = (uint8_t)(level_render_gradient * 0x22) << 16 | (uint8_t)(level_render_gradient * 0x22) << 8 | (uint8_t)(level_render_gradient * 0x22);
+				else if 														 					// Entrance
+					(*(level_to_render->map + ((y / tile_size) * level_to_render->width) + (x / tile_size)) == 2)
+					*pixel++ = (uint8_t)(level_render_gradient * 0xff) << 16 | (uint8_t)(level_render_gradient * 0xff) << 8 | (uint8_t)(level_render_gradient * 0xff);
+				else if 																			// Exit
+					(*(level_to_render->map + ((y  / tile_size) * level_to_render->width) + (x / tile_size)) == 3)
+					*pixel++ = (uint8_t)(level_render_gradient * 0xff) << 16 | (uint8_t)(level_render_gradient * 0xff) << 8 | (uint8_t)(level_render_gradient * 0xff);
 			}
 			buffer_pointer += buffer->texture_pitch;
 		}
 
-
 		if (game->current_level->next_level != NULL && game->render_next_level > 0)
 		{
-			(*level_to_render).render_transition = increment_to_max(level_to_render->render_transition, transition_time);
+			(*level_to_render).render_transition = increment_to_max(level_to_render->render_transition, level_transition_time);
 			game->render_next_level = 0;
 		}
 		else if (game->current_level->next_level != NULL && game->render_next_level < 0)
@@ -96,7 +87,7 @@ void render_game(struct pixel_buffer *buffer, struct game_state *game)
 		}
 		else if (game->current_level->prev_level != NULL && game->render_prev_level > 0)
 		{
-			(*level_to_render).render_transition = increment_to_max(level_to_render->render_transition, transition_time);
+			(*level_to_render).render_transition = increment_to_max(level_to_render->render_transition, level_transition_time);
 			game->render_prev_level = 0;
 		}
 		else if (game->current_level->prev_level != NULL && game->render_prev_level < 0)
@@ -106,7 +97,37 @@ void render_game(struct pixel_buffer *buffer, struct game_state *game)
 		}
 
 		levels_rendered++;
-				printf("Levels rendered %i\n", levels_rendered);
+	}
+
+	uint8_t *buffer_pointer = (uint8_t *)buffer->pixels;
+	buffer_pointer += (((buffer->client_height / 2) - (tile_size / 2)) * buffer->texture_pitch)
+					+ (((buffer->client_width / 2) - (tile_size / 2)) * buffer->bytes_per_pixel);
+
+	for (int y = 0; y < tile_size; ++y)
+	{
+		uint32_t *player_pointer = (uint32_t *)buffer_pointer;
+		for (int x = 0; x < tile_size; ++x)
+		{
+			*player_pointer++ = 0x000000ff;
+		}
+		buffer_pointer += buffer->texture_pitch;
+	}
+
+	if (game->player_1.x_transition > 0)
+	{
+		game->player_1.x_transition = decrement_to_zero(game->player_1.x_transition);
+	}
+	else if (game->player_1.x_transition < 0)
+	{
+		game->player_1.x_transition = increment_to_zero(game->player_1.x_transition);
+	}
+	else if (game->player_1.y_transition > 0)
+	{
+		game->player_1.y_transition = decrement_to_zero(game->player_1.y_transition);
+	}
+	else if (game->player_1.y_transition < 0)
+	{
+		game->player_1.y_transition = increment_to_zero(game->player_1.y_transition);
 	}
 }
 
@@ -176,7 +197,7 @@ void generate_level (struct level **new_level, struct level **prev_level)
 		else
 		{
 			(*new_level)->prev_level = NULL;
-			(*new_level)->render_transition = transition_time;
+			(*new_level)->render_transition = level_transition_time;
 		}
 
 		(*new_level)->width = (rand() % (MAX_LEVEL_WIDTH - MIN_LEVEL_WIDTH + 1)) + MIN_LEVEL_WIDTH;
@@ -234,6 +255,9 @@ void move_player (struct game_state *game, int x, int y)
 		// Move
 		game->player_1.x += x;
 		game->player_1.y += y;
+
+		game->player_1.x_transition += x * player_transition_time;
+		game->player_1.y_transition += y * player_transition_time;
 	}
 	// If going out of bounds
 	else if (game->player_1.y + y < 0 || game->player_1.y + y >= game->current_level->height 
@@ -251,10 +275,12 @@ void move_player (struct game_state *game, int x, int y)
 			else
 			{
 				game->current_level = game->current_level->next_level;
-			}
-
+			}			
 			game->player_1.x = game->current_level->entrance.x;
 			game->player_1.y = game->current_level->entrance.y;
+
+			game->player_1.x_transition += x * player_transition_time;
+			game->player_1.y_transition += y * player_transition_time;
 
 			game->render_next_level = 0;
 		}
@@ -267,9 +293,11 @@ void move_player (struct game_state *game, int x, int y)
 				game->current_level = game->current_level->prev_level;
 				game->current_level->next_level = last_level;
 			}
-
 			game->player_1.x = game->current_level->exit.x;
 			game->player_1.y = game->current_level->exit.y;
+
+			game->player_1.x_transition += x * player_transition_time;
+			game->player_1.y_transition += y * player_transition_time;
 
 			game->render_prev_level = 0;
 		}
@@ -320,36 +348,36 @@ void main_game_loop (struct pixel_buffer *buffer, void *game_memory, struct inpu
 		game->player_1.y = game->current_level->height / 2;
 
 		game->initialised = true;
-		game->render_next_level = 0;
 	}
 
 	if (input.keyboard_space)
 	{
-		game->paused = game->paused == true ? false : true;
+		game->paused = !game->paused;
 	}
 
 	if (!game->paused)
 	{
-		if (input.keyboard_up)
+		if (game->player_1.x_transition == 0 && game->player_1.y_transition == 0)
 		{
-			move_player(game, 0, -1);
-		}
-		if (input.keyboard_down)
-		{
-			move_player(game, 0, 1);
-		}
-		if (input.keyboard_left)
-		{
-			move_player(game, -1, 0);
-		}
-		if (input.keyboard_right)
-		{
-			move_player(game, 1, 0);
+			if (input.keyboard_up)
+			{
+				move_player(game, 0, -1);
+			}
+			if (input.keyboard_down)
+			{
+				move_player(game, 0, 1);
+			}
+			if (input.keyboard_left)
+			{
+				move_player(game, -1, 0);
+			}
+			if (input.keyboard_right)
+			{
+				move_player(game, 1, 0);
+			}
 		}
 
-		printf("pre %i\n", game->current_level->render_transition);
-
-		game->current_level->render_transition = increment_to_max(game->current_level->render_transition, transition_time);
+		game->current_level->render_transition = increment_to_max(game->current_level->render_transition, level_transition_time);
 
 		// If on entrance or exit tiles
 		if ((game->player_1.x == game->current_level->exit.x) && (game->player_1.y == game->current_level->exit.y))
@@ -359,21 +387,21 @@ void main_game_loop (struct pixel_buffer *buffer, void *game_memory, struct inpu
 				generate_level(&game->current_level->next_level, &game->current_level);
 				calculate_next_offsets(game->current_level);
 			}
-			game->render_next_level = 1;
 			if (game->current_level->prev_level != NULL)
 			{
 				game->current_level->prev_level->render_transition = 0;
 				game->render_prev_level = 0;
 			}
+			game->render_next_level = 1;
 		} 
 		else if ((game->player_1.x == game->current_level->entrance.x) && (game->player_1.y == game->current_level->entrance.y))
 		{
-			game->render_prev_level = 1;
 			if (game->current_level->next_level != NULL)
 			{
 				game->current_level->next_level->render_transition = 0;
 				game->render_next_level = 0;
 			}
+			game->render_prev_level = 1;
 		}
 		else
 		{
@@ -394,8 +422,6 @@ void main_game_loop (struct pixel_buffer *buffer, void *game_memory, struct inpu
 				game->render_prev_level = 0;
 			}
 		}
-		
-		printf("post %i\n", game->current_level->render_transition);
 
 		clear_backround(buffer);
 		render_game(buffer, game);

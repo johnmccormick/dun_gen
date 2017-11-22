@@ -13,6 +13,16 @@ int increment_to_max (int incremement, int transition_time)
 	return incremement;
 }
 
+int increment_to_zero (int incremement)
+{
+	if (incremement < 0)
+	{
+		incremement++;
+	}
+
+	return incremement;
+}
+
 int decrement_to_zero (int decrement)
 {
 	if (decrement > 0)

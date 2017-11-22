@@ -53,6 +53,8 @@ struct player
 {
 	int x;
 	int y;
+	int x_transition;
+	int y_transition;
 };
 
 struct game_state
@@ -66,4 +68,5 @@ struct game_state
 };
 
 int tile_size = 40;
-int transition_time = 60;
+int level_transition_time = 60;
+int player_transition_time = 10;
