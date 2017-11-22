@@ -129,6 +129,8 @@ void render_game(struct pixel_buffer *buffer, struct game_state *game)
 	{
 		game->player_1.y_transition = increment_to_zero(game->player_1.y_transition);
 	}
+
+
 }
 
 void clear_backround (struct pixel_buffer *buffer)
@@ -285,6 +287,7 @@ void move_player (struct game_state *game, int x, int y)
 		&& game->player_1.y + y >= 0 && game->player_1.y + y < game->current_level->height 
 		&& game->player_1.x + x >= 0 && game->player_1.x + x < game->current_level->width)
 	{
+
 		game->player_1.x += x;
 		game->player_1.y += y;
 
@@ -383,31 +386,61 @@ void main_game_loop (struct pixel_buffer *buffer, void *game_memory, struct inpu
 		game->initialised = true;
 	}
 
-	if (input.keyboard_space)
+	if (input.keyboard_down_space)
 	{
 		game->paused = !game->paused;
 	}
 
 	if (!game->paused)
 	{
+		if (input.keyboard_down_left || input.keyboard_down_right || input.keyboard_down_up || input.keyboard_down_down)
+		{
+			struct coord_offset new_move_direction;
+
+			new_move_direction.x = 0;
+			new_move_direction.y = 0;
+
+			if (input.keyboard_down_left)
+			{
+				new_move_direction.x = -1;
+			}
+			if (input.keyboard_down_right)
+			{
+				new_move_direction.x = 1;
+			}
+			if (input.keyboard_down_up)
+			{
+				new_move_direction.y = -1;
+			}
+			if (input.keyboard_down_down)
+			{
+				new_move_direction.y = 1;
+			}
+			game->player_1.move_direction = new_move_direction;
+		}
+		if (input.keyboard_up_left || input.keyboard_up_right || input.keyboard_up_up || input.keyboard_up_down)
+		{
+			if (input.keyboard_up_left && game->player_1.move_direction.x == -1)
+			{
+				game->player_1.move_direction.x = 0;
+			}
+			if (input.keyboard_up_right && game->player_1.move_direction.x == 1)
+			{
+				game->player_1.move_direction.x = 0;
+			}
+			if (input.keyboard_up_up && game->player_1.move_direction.y == -1)
+			{
+				game->player_1.move_direction.y = 0;
+			}
+			if (input.keyboard_up_down && game->player_1.move_direction.y == 1)
+			{
+				game->player_1.move_direction.y = 0;
+			}
+		}
+
 		if (game->player_1.x_transition == 0 && game->player_1.y_transition == 0)
 		{
-			if (input.keyboard_up)
-			{
-				move_player(game, 0, -1);
-			}
-			if (input.keyboard_down)
-			{
-				move_player(game, 0, 1);
-			}
-			if (input.keyboard_left)
-			{
-				move_player(game, -1, 0);
-			}
-			if (input.keyboard_right)
-			{
-				move_player(game, 1, 0);
-			}
+			move_player(game, game->player_1.move_direction.x, game->player_1.move_direction.y);
 		}
 
 		game->current_level->render_transition = increment_to_max(game->current_level->render_transition, level_transition_time);

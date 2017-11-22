@@ -4,14 +4,22 @@
 
 struct input_events
 {
-	bool keyboard_return;
-	bool keyboard_backspace;
-	bool keyboard_space;
-	bool keyboard_up;
-	bool keyboard_down;
-	bool keyboard_left;
-	bool keyboard_right;
+	bool keyboard_up_return;
+	bool keyboard_up_backspace;
+	bool keyboard_up_space;
+	bool keyboard_up_up;
+	bool keyboard_up_down;
+	bool keyboard_up_left;
+	bool keyboard_up_right;
+	bool keyboard_down_return;
+	bool keyboard_down_backspace;
+	bool keyboard_down_space;
+	bool keyboard_down_up;
+	bool keyboard_down_down;
+	bool keyboard_down_left;
+	bool keyboard_down_right;
 };
+
 
 struct pixel_buffer
 {
@@ -54,6 +62,7 @@ struct player
 	int y;
 	int x_transition;
 	int y_transition;
+	struct coord_offset move_direction;
 };
 
 struct game_state
