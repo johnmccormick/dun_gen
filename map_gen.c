@@ -336,36 +336,37 @@ void move_player (struct game_state *game, int x, int y)
 	}
 }
 
-void calculate_next_offsets (struct level *current_level)
+struct coord_offset calculate_next_offsets (struct level current_level)
 {
-	if ((*current_level).exit.x == (*current_level).width - 1)
+	struct coord_offset level_offset; 
+
+	if (current_level.exit.x == current_level.width - 1)
 	{
-		(*current_level).next_offset.x = (*current_level).width;
-		(*current_level).next_offset.y = (*current_level).exit.y - (*current_level).next_level->entrance.y;
+		level_offset.x = current_level.width;
+		level_offset.y = current_level.exit.y - current_level.next_level->entrance.y;
 	}
-	else if ((*current_level).exit.y == (*current_level).height - 1)
+	else if (current_level.exit.y == current_level.height - 1)
 	{
-		(*current_level).next_offset.x = (*current_level).exit.x - (*current_level).next_level->entrance.x;
-		(*current_level).next_offset.y = (*current_level).height;
+		level_offset.x = current_level.exit.x - current_level.next_level->entrance.x;
+		level_offset.y = current_level.height;
 	}
-	else if ((*current_level).exit.x == 0)
+	else if (current_level.exit.x == 0)
 	{
-		(*current_level).next_offset.x = -(*current_level).next_level->width;
-		(*current_level).next_offset.y = (*current_level).exit.y - (*current_level).next_level->entrance.y;
+		level_offset.x = -current_level.next_level->width;
+		level_offset.y = current_level.exit.y - current_level.next_level->entrance.y;
 	}
-	else if ((*current_level).exit.y == 0)
+	else if (current_level.exit.y == 0)
 	{
-		(*current_level).next_offset.x = (*current_level).exit.x - (*current_level).next_level->entrance.x;
-		(*current_level).next_offset.y = -(*current_level).next_level->height;
+		level_offset.x = current_level.exit.x - current_level.next_level->entrance.x;
+		level_offset.y = -current_level.next_level->height;
 	}
 	else
 	{
-		(*current_level).next_offset.x = 0;
-		(*current_level).next_offset.y = 0;
+		level_offset.x = 0;
+		level_offset.y = 0;
 	}
 
-	(*current_level).next_level->prev_offset.x = -(*current_level).next_offset.x;
-	(*current_level).next_level->prev_offset.y = -(*current_level).next_offset.y;
+	return level_offset;
 }
 
 void main_game_loop (struct pixel_buffer *buffer, void *game_memory, struct input_events input)
@@ -417,7 +418,10 @@ void main_game_loop (struct pixel_buffer *buffer, void *game_memory, struct inpu
 			if (!game->current_level->next_level)
 			{
 				game->current_level->next_level = generate_level(game->current_level);
-				calculate_next_offsets(game->current_level);
+
+				game->current_level->next_offset = calculate_next_offsets(*game->current_level);
+				game->current_level->next_level->prev_offset.x = -game->current_level->next_offset.x;
+				game->current_level->next_level->prev_offset.y = -game->current_level->next_offset.y;
 			}
 			if (game->current_level->prev_level != NULL)
 			{
