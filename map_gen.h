@@ -1,3 +1,5 @@
+#include <stdbool.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/time.h>
@@ -28,6 +30,7 @@ struct pixel_buffer
     int client_height;
     int bytes_per_pixel;
     int texture_pitch;
+    void *main_texture;
 };
 
 struct coord_offset
@@ -52,7 +55,6 @@ struct level
 	struct level *prev_level;
 	struct level *next_level;
 	struct coord_offset next_offset;
-	struct coord_offset prev_offset;
 	int render_transition;
 	bool frame_rendered;
 };
@@ -76,6 +78,6 @@ struct game_state
 	int render_prev_level;
 };
 
-int tile_size = 40;
-int level_transition_time = 40;
+int tile_size = 20;
+int level_transition_time = 200;
 int player_transition_time = 10;

@@ -1,4 +1,3 @@
-#include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <sys/types.h>
@@ -43,6 +42,8 @@ int main ()
         win_width, win_height);
 
     struct pixel_buffer *main_buffer = malloc(sizeof(struct pixel_buffer));
+
+    main_buffer->main_texture = texture;
 
     main_buffer->client_width = win_width;
     main_buffer->client_height = win_height;
