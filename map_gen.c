@@ -13,10 +13,42 @@ void render_game(struct pixel_buffer *buffer, struct game_state *game)
 	int levels_to_render = 1;
 	int levels_rendered = 0;
 
-	if (game->current_level->next_level != NULL && game->render_next_level != 0) 
+	game->current_level->frame_rendered = 0;
+
+	if (game->current_level->next_level != NULL)
+	{
 		++levels_to_render;
-	if (game->current_level->prev_level != NULL && game->render_prev_level != 0)
-		++levels_to_render;
+		game->current_level->next_level->frame_rendered = 0;
+	} 
+
+	int prev_level_offset_x = 0;
+	int prev_level_offset_y = 0;
+
+	int prev_levels_to_render = 0;
+
+	struct level *most_prev_level = game->current_level->prev_level;
+	while (most_prev_level != NULL)
+	{
+		++prev_levels_to_render;
+		most_prev_level->frame_rendered = 0;
+
+		prev_level_offset_x = prev_level_offset_x - (most_prev_level->next_offset.x * tile_size);
+		prev_level_offset_y = prev_level_offset_y - (most_prev_level->next_offset.y * tile_size);
+
+		if (most_prev_level->prev_level != NULL)
+		{
+			most_prev_level = most_prev_level->prev_level;
+		}
+		else
+		{
+			break;
+		}
+	}
+
+	levels_to_render += prev_levels_to_render;
+
+	printf("levels to render %i\n", levels_to_render);
+	printf("prev levels to render %i\n", prev_levels_to_render);
 
 	while (levels_rendered < levels_to_render)
 	{
@@ -25,17 +57,26 @@ void render_game(struct pixel_buffer *buffer, struct game_state *game)
 		int level_offset_x = 0;
 		int level_offset_y = 0;
 
-		if (game->current_level->next_level != NULL && game->render_next_level != 0)
+		if (most_prev_level != NULL && most_prev_level->frame_rendered == 1 && prev_levels_to_render > 0)
 		{
+			prev_level_offset_x = prev_level_offset_x + (most_prev_level->next_offset.x * tile_size);
+			prev_level_offset_y = prev_level_offset_y + (most_prev_level->next_offset.y * tile_size);
+			most_prev_level = most_prev_level->next_level;
+		}
+
+		if (most_prev_level != NULL && most_prev_level->frame_rendered == 0)
+		{
+			printf("yepp\n");
+			level_to_render = most_prev_level;
+			level_offset_x = prev_level_offset_x;
+			level_offset_y = prev_level_offset_y;
+		}
+		else if (game->current_level->next_level != NULL && game->current_level->next_level->frame_rendered == 0)
+		{
+			printf("yes\n");
 			level_to_render = game->current_level->next_level;
 			level_offset_x = (game->current_level->next_offset.x * tile_size);
 			level_offset_y = (game->current_level->next_offset.y * tile_size);
-		}
-		else if (game->current_level->prev_level != NULL && game->render_prev_level != 0)
-		{
-			level_to_render = game->current_level->prev_level;
-			level_offset_x = (game->current_level->prev_offset.x * tile_size);
-			level_offset_y = (game->current_level->prev_offset.y * tile_size);
 		}
 
 		float level_render_gradient = ((float)level_to_render->render_transition / (float)level_transition_time);
@@ -78,15 +119,9 @@ void render_game(struct pixel_buffer *buffer, struct game_state *game)
 			buffer_pointer += buffer->texture_pitch;
 		}
 
-		if (game->render_next_level > 0)
-		{
-		 	game->render_next_level = 0;
-		}
-		else if (game->render_prev_level > 0)
-		{
-		 	game->render_prev_level = 0;
-		}
+		level_to_render->frame_rendered = 1;
 
+		printf("levels rendered %i\n", levels_rendered + 1);
 		levels_rendered++;
 	}
 
@@ -145,8 +180,8 @@ struct level *generate_level (struct level *prev_level)
 	int MIN_LEVEL_WIDTH = 3; 
 	int MIN_LEVEL_HEIGHT = 3;
 	
-	int MAX_LEVEL_WIDTH = 20;
-	int MAX_LEVEL_HEIGHT = 20;
+	int MAX_LEVEL_WIDTH = 6;
+	int MAX_LEVEL_HEIGHT = 6;
 
 	struct timeval time;
 	gettimeofday(&time, NULL);
@@ -338,6 +373,7 @@ void move_player (struct game_state *game, int x, int y)
 
 				// Create next level
 				game->current_level->next_level = generate_level(game->current_level);
+				game->current_level->next_level->frame_rendered = 0;
 
 				game->current_level->next_offset = calculate_next_offsets(*game->current_level);
 				game->current_level->next_level->prev_offset.x = -game->current_level->next_offset.x;
@@ -376,11 +412,13 @@ void main_game_loop (struct pixel_buffer *buffer, void *game_memory, struct inpu
 		game->current_level = generate_level(NULL);
 
 		game->current_level->render_transition = 0;
+		game->current_level->frame_rendered = 0;
 
 		game->player_1.x = game->current_level->width / 2;
 		game->player_1.y = game->current_level->height / 2;
 
 		game->current_level->next_level = generate_level(game->current_level);
+		game->current_level->next_level->frame_rendered = 0;
 
 		game->current_level->next_offset = calculate_next_offsets(*game->current_level);
 		game->current_level->next_level->prev_offset.x = -game->current_level->next_offset.x;
@@ -444,12 +482,10 @@ void main_game_loop (struct pixel_buffer *buffer, void *game_memory, struct inpu
 			}
 		}
 
-
 		if (game->player_1.x_transition == 0 && game->player_1.y_transition == 0 && (game->player_1.move_direction.x != 0 || game->player_1.move_direction.y != 0))
 		{
 			move_player(game, game->player_1.move_direction.x, game->player_1.move_direction.y);
 		}
-
 
 		game->current_level->render_transition = increment_to_max(game->current_level->render_transition, level_transition_time);
 
@@ -464,23 +500,23 @@ void main_game_loop (struct pixel_buffer *buffer, void *game_memory, struct inpu
 		{
 			game->current_level->next_level->render_transition = decrement_to_zero(game->current_level->next_level->render_transition);
 		}
-		game->render_next_level = game->current_level->next_level->render_transition;
+		//game->render_next_level = game->current_level->next_level->render_transition;
 
-		int blocks_to_entrance;
-		blocks_to_entrance = abs(game->current_level->entrance.y - game->player_1.y) + abs(game->current_level->entrance.x - game->player_1.x);
+		// int blocks_to_entrance;
+		// blocks_to_entrance = abs(game->current_level->entrance.y - game->player_1.y) + abs(game->current_level->entrance.x - game->player_1.x);
 
-		if (game->current_level->prev_level)
-		{
-			if (blocks_to_entrance < 3)
-			{
-				game->current_level->prev_level->render_transition = increment_to_max(game->current_level->prev_level->render_transition, level_transition_time);
-			}
-			else
-			{
-				game->current_level->prev_level->render_transition = decrement_to_zero(game->current_level->prev_level->render_transition);
-			}
-			game->render_prev_level = game->current_level->prev_level->render_transition;
-		}
+		// if (game->current_level->prev_level)
+		// {
+		// 	if (blocks_to_entrance < 3)
+		// 	{
+		// 		game->current_level->prev_level->render_transition = increment_to_max(game->current_level->prev_level->render_transition, level_transition_time);
+		// 	}
+		// 	else
+		// 	{
+		// 		game->current_level->prev_level->render_transition = decrement_to_zero(game->current_level->prev_level->render_transition);
+		// 	}
+			//game->render_prev_level = game->current_level->prev_level->render_transition;
+		// }
 
 		clear_backround(buffer);
 		render_game(buffer, game);

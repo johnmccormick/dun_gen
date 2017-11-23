@@ -54,6 +54,7 @@ struct level
 	struct coord_offset next_offset;
 	struct coord_offset prev_offset;
 	int render_transition;
+	bool frame_rendered;
 };
 
 struct player
@@ -76,5 +77,5 @@ struct game_state
 };
 
 int tile_size = 40;
-int level_transition_time = 60;
+int level_transition_time = 40;
 int player_transition_time = 10;

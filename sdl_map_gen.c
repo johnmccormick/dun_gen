@@ -16,7 +16,7 @@ int main ()
         "Map Generator",
         SDL_WINDOWPOS_UNDEFINED,
         SDL_WINDOWPOS_UNDEFINED,
-        500, 500,
+        700, 700,
         SDL_WINDOW_SHOWN
     );
 
