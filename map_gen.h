@@ -77,5 +77,5 @@ struct game_state
 };
 
 int tile_size = 40;
-int level_transition_time = 40;
+int level_transition_time = 100;
 int player_transition_time = 10;
