@@ -13,7 +13,10 @@ void render_game(struct pixel_buffer *buffer, struct game_state *game)
 	int levels_to_render = 1;
 	int levels_rendered = 0;
 
-	levels_to_render = (game->current_level->next_level != NULL && game->render_next_level != 0) || (game->current_level->prev_level != NULL && game->render_prev_level != 0) ? 2 : 1;
+	if (game->current_level->next_level != NULL && game->render_next_level != 0) 
+		++levels_to_render;
+	if (game->current_level->prev_level != NULL && game->render_prev_level != 0)
+		++levels_to_render;
 
 	while (levels_rendered < levels_to_render)
 	{
@@ -75,25 +78,13 @@ void render_game(struct pixel_buffer *buffer, struct game_state *game)
 			buffer_pointer += buffer->texture_pitch;
 		}
 
-		if (game->current_level->next_level != NULL && game->render_next_level > 0)
+		if (game->render_next_level > 0)
 		{
-			(*level_to_render).render_transition = increment_to_max(level_to_render->render_transition, level_transition_time);
-			game->render_next_level = 0;
+		 	game->render_next_level = 0;
 		}
-		else if (game->current_level->next_level != NULL && game->render_next_level < 0)
+		else if (game->render_prev_level > 0)
 		{
-			(*level_to_render).render_transition = decrement_to_zero(level_to_render->render_transition);
-			game->render_next_level = 0;
-		}
-		else if (game->current_level->prev_level != NULL && game->render_prev_level > 0)
-		{
-			(*level_to_render).render_transition = increment_to_max(level_to_render->render_transition, level_transition_time);
-			game->render_prev_level = 0;
-		}
-		else if (game->current_level->prev_level != NULL && game->render_prev_level < 0)
-		{
-			(*level_to_render).render_transition = decrement_to_zero(level_to_render->render_transition);
-			game->render_prev_level = 0;
+		 	game->render_prev_level = 0;
 		}
 
 		levels_rendered++;
@@ -279,65 +270,6 @@ struct level *generate_level (struct level *prev_level)
 	return new_level;
 }
 
-void move_player (struct game_state *game, int x, int y)
-{
-	// If not hitting a wall
-	if (*(game->current_level->map + ((game->player_1.y + y) * (game->current_level->width )+ game->player_1.x + x)) != 0
-		// and not outside game bounds
-		&& game->player_1.y + y >= 0 && game->player_1.y + y < game->current_level->height 
-		&& game->player_1.x + x >= 0 && game->player_1.x + x < game->current_level->width)
-	{
-
-		game->player_1.x += x;
-		game->player_1.y += y;
-
-		game->player_1.x_transition += x * player_transition_time;
-		game->player_1.y_transition += y * player_transition_time;
-	}
-	// If going out of bounds
-	else if (game->player_1.y + y < 0 || game->player_1.y + y >= game->current_level->height 
-		|| game->player_1.x + x < 0 || game->player_1.x + x >= game->current_level->width)
-	{
-		// If on exit, transport to next map
-		if ((game->player_1.x == game->current_level->exit.x) && (game->player_1.y == game->current_level->exit.y))
-		{
-			if (game->current_level->next_level == NULL)
-			{
-				struct level *last_level = game->current_level;
-				game->current_level = game->current_level->next_level;
-				game->current_level->prev_level = last_level;
-			}
-			else
-			{
-				game->current_level = game->current_level->next_level;
-			}			
-			game->player_1.x = game->current_level->entrance.x;
-			game->player_1.y = game->current_level->entrance.y;
-
-			game->player_1.x_transition += x * player_transition_time;
-			game->player_1.y_transition += y * player_transition_time;
-
-			game->render_next_level = 0;
-		}
-		// If on entrance, transport to previous map
-		else if ((game->player_1.x == game->current_level->entrance.x) && (game->player_1.y == game->current_level->entrance.y))
-		{
-			if (game->current_level->prev_level != NULL)
-			{
-				struct level *last_level = game->current_level;
-				game->current_level = game->current_level->prev_level;
-				game->current_level->next_level = last_level;
-			}
-			game->player_1.x = game->current_level->exit.x;
-			game->player_1.y = game->current_level->exit.y;
-
-			game->player_1.x_transition += x * player_transition_time;
-			game->player_1.y_transition += y * player_transition_time;
-
-			game->render_prev_level = 0;
-		}
-	}
-}
 
 struct coord_offset calculate_next_offsets (struct level current_level)
 {
@@ -372,6 +304,69 @@ struct coord_offset calculate_next_offsets (struct level current_level)
 	return level_offset;
 }
 
+
+void move_player (struct game_state *game, int x, int y)
+{
+	// If not hitting a wall
+	if (*(game->current_level->map + ((game->player_1.y + y) * (game->current_level->width )+ game->player_1.x + x)) != 0
+		// and not outside game bounds
+		&& game->player_1.y + y >= 0 && game->player_1.y + y < game->current_level->height 
+		&& game->player_1.x + x >= 0 && game->player_1.x + x < game->current_level->width)
+	{
+		game->player_1.x += x;
+		game->player_1.y += y;
+
+		game->player_1.x_transition += x * player_transition_time;
+		game->player_1.y_transition += y * player_transition_time;
+	}
+	// If going out of bounds
+	else if (game->player_1.y + y < 0 || game->player_1.y + y >= game->current_level->height 
+		|| game->player_1.x + x < 0 || game->player_1.x + x >= game->current_level->width)
+	{
+		// If on exit, transport to next map
+		if ((game->player_1.x == game->current_level->exit.x) && (game->player_1.y == game->current_level->exit.y))
+		{		
+			if (game->current_level->next_level->next_level)
+			{
+				game->current_level = game->current_level->next_level;
+			}
+			else
+			{
+				struct level *last_level = game->current_level;
+				game->current_level = game->current_level->next_level;
+				game->current_level->prev_level = last_level;
+
+				// Create next level
+				game->current_level->next_level = generate_level(game->current_level);
+
+				game->current_level->next_offset = calculate_next_offsets(*game->current_level);
+				game->current_level->next_level->prev_offset.x = -game->current_level->next_offset.x;
+				game->current_level->next_level->prev_offset.y = -game->current_level->next_offset.y;
+
+				game->current_level->next_level->prev_offset.x = -game->current_level->next_offset.x;
+				game->current_level->next_level->prev_offset.y = -game->current_level->next_offset.y;
+			}
+
+			game->player_1.x = game->current_level->entrance.x;
+			game->player_1.y = game->current_level->entrance.y;
+
+			game->player_1.x_transition += x * player_transition_time;
+			game->player_1.y_transition += y * player_transition_time;
+		}
+		// If on entrance, transport to previous map
+		else if ((game->player_1.x == game->current_level->entrance.x) && (game->player_1.y == game->current_level->entrance.y))
+		{
+			game->current_level = game->current_level->prev_level;
+
+			game->player_1.x = game->current_level->exit.x;
+			game->player_1.y = game->current_level->exit.y;
+
+			game->player_1.x_transition += x * player_transition_time;
+			game->player_1.y_transition += y * player_transition_time;
+		}
+	}
+}
+
 void main_game_loop (struct pixel_buffer *buffer, void *game_memory, struct input_events input)
 {
 	struct game_state *game = game_memory;
@@ -380,8 +375,19 @@ void main_game_loop (struct pixel_buffer *buffer, void *game_memory, struct inpu
 	{
 		game->current_level = generate_level(NULL);
 
+		game->current_level->render_transition = 0;
+
 		game->player_1.x = game->current_level->width / 2;
 		game->player_1.y = game->current_level->height / 2;
+
+		game->current_level->next_level = generate_level(game->current_level);
+
+		game->current_level->next_offset = calculate_next_offsets(*game->current_level);
+		game->current_level->next_level->prev_offset.x = -game->current_level->next_offset.x;
+		game->current_level->next_level->prev_offset.y = -game->current_level->next_offset.y;
+
+		struct level *this_level = game->current_level;
+		game->current_level->next_level->prev_level = this_level;
 
 		game->initialised = true;
 	}
@@ -438,58 +444,42 @@ void main_game_loop (struct pixel_buffer *buffer, void *game_memory, struct inpu
 			}
 		}
 
-		if (game->player_1.x_transition == 0 && game->player_1.y_transition == 0)
+
+		if (game->player_1.x_transition == 0 && game->player_1.y_transition == 0 && (game->player_1.move_direction.x != 0 || game->player_1.move_direction.y != 0))
 		{
 			move_player(game, game->player_1.move_direction.x, game->player_1.move_direction.y);
 		}
 
+
 		game->current_level->render_transition = increment_to_max(game->current_level->render_transition, level_transition_time);
 
-		// If on entrance or exit tiles
-		if ((game->player_1.x == game->current_level->exit.x) && (game->player_1.y == game->current_level->exit.y))
-		{
-			if (!game->current_level->next_level)
-			{
-				game->current_level->next_level = generate_level(game->current_level);
+		int blocks_to_exit;
+		blocks_to_exit = abs(game->current_level->exit.y - game->player_1.y) + abs(game->current_level->exit.x - game->player_1.x);
 
-				game->current_level->next_offset = calculate_next_offsets(*game->current_level);
-				game->current_level->next_level->prev_offset.x = -game->current_level->next_offset.x;
-				game->current_level->next_level->prev_offset.y = -game->current_level->next_offset.y;
-			}
-			if (game->current_level->prev_level != NULL)
-			{
-				game->current_level->prev_level->render_transition = 0;
-				game->render_prev_level = 0;
-			}
-			game->render_next_level = 1;
-		} 
-		else if ((game->player_1.x == game->current_level->entrance.x) && (game->player_1.y == game->current_level->entrance.y))
+		if (blocks_to_exit < 3)
 		{
-			if (game->current_level->next_level != NULL)
-			{
-				game->current_level->next_level->render_transition = 0;
-				game->render_next_level = 0;
-			}
-			game->render_prev_level = 1;
+			game->current_level->next_level->render_transition = increment_to_max(game->current_level->next_level->render_transition, level_transition_time);
 		}
 		else
 		{
-			if (game->current_level->next_level != NULL && game->current_level->next_level->render_transition > 0)
+			game->current_level->next_level->render_transition = decrement_to_zero(game->current_level->next_level->render_transition);
+		}
+		game->render_next_level = game->current_level->next_level->render_transition;
+
+		int blocks_to_entrance;
+		blocks_to_entrance = abs(game->current_level->entrance.y - game->player_1.y) + abs(game->current_level->entrance.x - game->player_1.x);
+
+		if (game->current_level->prev_level)
+		{
+			if (blocks_to_entrance < 3)
 			{
-				game->render_next_level = -1;
+				game->current_level->prev_level->render_transition = increment_to_max(game->current_level->prev_level->render_transition, level_transition_time);
 			}
 			else
 			{
-				game->render_next_level = 0;
+				game->current_level->prev_level->render_transition = decrement_to_zero(game->current_level->prev_level->render_transition);
 			}
-			if (game->current_level->prev_level != NULL && game->current_level->prev_level->render_transition > 0)
-			{
-				game->render_prev_level = -1;
-			}
-			else
-			{
-				game->render_prev_level = 0;
-			}
+			game->render_prev_level = game->current_level->prev_level->render_transition;
 		}
 
 		clear_backround(buffer);
