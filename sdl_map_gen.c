@@ -43,8 +43,6 @@ int main ()
 
     struct pixel_buffer *main_buffer = malloc(sizeof(struct pixel_buffer));
 
-    main_buffer->main_texture = texture;
-
     main_buffer->client_width = win_width;
     main_buffer->client_height = win_height;
 

@@ -1,3 +1,5 @@
+#include <stdbool.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/time.h>
@@ -73,6 +75,6 @@ struct game_state
 	struct player player_1;
 };
 
-int tile_size = 40;
+int tile_size = 20;
 int level_transition_time = 100;
 int player_transition_time = 10;

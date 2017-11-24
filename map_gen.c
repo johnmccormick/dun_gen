@@ -82,7 +82,7 @@ void render_game(struct pixel_buffer *buffer, struct game_state *game)
 		int level_offset_x = 0;
 		int level_offset_y = 0;
 
-		if (most_prev_level != NULL && most_prev_level->frame_rendered == 1 && prev_levels_to_render > 0)
+		if (most_prev_level != NULL && most_prev_level->frame_rendered == 1 && prev_levels_to_render > 0 && prev_levels_to_render >= next_levels_to_render)
 		{
 			prev_level_offset_x = prev_level_offset_x + (most_prev_level->next_offset.x * tile_size);
 			prev_level_offset_y = prev_level_offset_y + (most_prev_level->next_offset.y * tile_size);
@@ -95,7 +95,7 @@ void render_game(struct pixel_buffer *buffer, struct game_state *game)
 			most_next_level = most_next_level->prev_level;
 		}
 
-		if (most_prev_level != NULL && most_prev_level->frame_rendered == 0)
+		if (most_prev_level != NULL && most_prev_level->frame_rendered == 0 && prev_levels_to_render >= next_levels_to_render)
 		{
 			level_to_render = most_prev_level;
 			level_offset_x = prev_level_offset_x;
@@ -134,17 +134,18 @@ void render_game(struct pixel_buffer *buffer, struct game_state *game)
 			uint32_t *pixel = (uint32_t *) buffer_pointer;
 			for (int x = first_tile_x; x < last_tile_x; ++x)
 			{
+				int tile_location = ((y / tile_size) * level_to_render->width) + (x / tile_size);
 				// Otherwise, what map tile is pixel on...											// Floor
-				if (*(level_to_render->map + ((y / tile_size) * level_to_render->width) + (x / tile_size)) == 1)
+				if (*(level_to_render->map + tile_location) == 1)
 					*pixel++ = (uint8_t)(level_render_gradient * 0xff) << 16 | (uint8_t)(level_render_gradient * 0xff) << 8 | (uint8_t)(level_render_gradient * 0xff);
 				else if  																			// Wall
-					(*(level_to_render->map + ((y / tile_size) * level_to_render->width) + (x / tile_size)) == 0)
+					(*(level_to_render->map + tile_location) == 0)
 					*pixel++ = (uint8_t)(level_render_gradient * 0x22) << 16 | (uint8_t)(level_render_gradient * 0x22) << 8 | (uint8_t)(level_render_gradient * 0x22);
 				else if 														 					// Entrance
-					(*(level_to_render->map + ((y / tile_size) * level_to_render->width) + (x / tile_size)) == 2)
+					(*(level_to_render->map + tile_location) == 2)
 					*pixel++ = (uint8_t)(level_render_gradient * 0xff) << 16 | (uint8_t)(level_render_gradient * 0xff) << 8 | (uint8_t)(level_render_gradient * 0xff);
 				else if 																			// Exit
-					(*(level_to_render->map + ((y  / tile_size) * level_to_render->width) + (x / tile_size)) == 3)
+					(*(level_to_render->map + tile_location) == 3)
 					*pixel++ = (uint8_t)(level_render_gradient * 0xff) << 16 | (uint8_t)(level_render_gradient * 0xff) << 8 | (uint8_t)(level_render_gradient * 0xff);
 			}
 			buffer_pointer += buffer->texture_pitch;
