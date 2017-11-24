@@ -523,9 +523,9 @@ void main_game_loop (struct pixel_buffer *buffer, void *game_memory, struct inpu
 		}
 
 		struct level *most_next_level = game->current_level->next_level;
-		while (most_next_level != NULL && most_next_level->render_transition > 0)
+		while (most_next_level != NULL)
 		{
-			if (most_next_level->next_level != NULL)
+			if (most_next_level->next_level != NULL && most_next_level->next_level->render_transition > 0)
 			{
 				most_next_level->next_level->render_transition = decrement_to_zero(most_next_level->next_level->render_transition);
 				most_next_level = most_next_level->next_level;
@@ -552,9 +552,9 @@ void main_game_loop (struct pixel_buffer *buffer, void *game_memory, struct inpu
 		}
 
 		struct level *most_prev_level = game->current_level->prev_level;
-		while (most_prev_level != NULL && most_prev_level->render_transition > 0)
+		while (most_prev_level != NULL)
 		{
-			if (most_prev_level->prev_level != NULL)
+			if (most_prev_level->prev_level != NULL && most_prev_level->prev_level->render_transition > 0)
 			{
 				most_prev_level->prev_level->render_transition = decrement_to_zero(most_prev_level->prev_level->render_transition);
 				most_prev_level = most_prev_level->prev_level;
