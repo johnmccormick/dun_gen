@@ -74,8 +74,6 @@ struct game_state
 	bool paused;
 	struct level *current_level;
 	struct player player_1;
-	int render_next_level;
-	int render_prev_level;
 };
 
 int tile_size = 20;
