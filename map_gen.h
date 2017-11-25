@@ -6,22 +6,41 @@
 
 struct input_events
 {
-	bool keyboard_up_return;
-	bool keyboard_up_backspace;
-	bool keyboard_up_space;
-	bool keyboard_up_up;
-	bool keyboard_up_down;
-	bool keyboard_up_left;
-	bool keyboard_up_right;
-	bool keyboard_down_return;
-	bool keyboard_down_backspace;
-	bool keyboard_down_space;
-	bool keyboard_down_up;
-	bool keyboard_down_down;
-	bool keyboard_down_left;
-	bool keyboard_down_right;
+	bool keyboard_press_w;
+    bool keyboard_release_w;
+    bool keyboard_press_s;
+    bool keyboard_release_s;
+    bool keyboard_press_a;
+    bool keyboard_release_a;
+    bool keyboard_press_d;
+    bool keyboard_release_d;
+    bool keyboard_press_up;
+    bool keyboard_release_up;
+    bool keyboard_press_down;
+    bool keyboard_release_down;
+    bool keyboard_press_left;
+    bool keyboard_release_left;
+    bool keyboard_press_right;
+    bool keyboard_release_right;
+    bool keyboard_press_space;
 };
 
+#define KEY_W 0
+#define KEY_A 1
+#define KEY_S 2
+#define KEY_D 3
+#define KEY_UP 4
+#define KEY_DOWN 5
+#define KEY_LEFT 6
+#define KEY_RIGHT 7
+
+struct input_key
+{
+	int id;
+	bool is_down;
+	struct input_key *prev_key;
+	struct input_key *next_key;
+};
 
 struct pixel_buffer
 {
@@ -73,10 +92,11 @@ struct game_state
 	bool paused;
 	struct level *current_level;
 	struct player player_1;
+	int tile_size;
+	int level_transition_time;
+	int player_transition_time;
 	int next_render_depth;
 	int prev_render_depth;
+	struct input_key *input_keys;
+	struct input_key *last_input_key;
 };
-
-int tile_size = 20;
-int level_transition_time = 150;
-int player_transition_time = 10;

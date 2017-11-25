@@ -56,27 +56,30 @@ int main ()
     void *game_memory = malloc(game_memory_size);
     memset(game_memory, 0, game_memory_size);
 
-    struct input_events zeroed_input_events;
-    zeroed_input_events.keyboard_down_return = 0;
-    zeroed_input_events.keyboard_down_backspace = 0;
-    zeroed_input_events.keyboard_down_space = 0;
-    zeroed_input_events.keyboard_down_up = 0;
-    zeroed_input_events.keyboard_down_down = 0;
-    zeroed_input_events.keyboard_down_left = 0;
-    zeroed_input_events.keyboard_down_right = 0;
-    zeroed_input_events.keyboard_up_return = 0;
-    zeroed_input_events.keyboard_up_backspace = 0;
-    zeroed_input_events.keyboard_up_space = 0;
-    zeroed_input_events.keyboard_up_up = 0;
-    zeroed_input_events.keyboard_up_down = 0;
-    zeroed_input_events.keyboard_up_left = 0;
-    zeroed_input_events.keyboard_up_right = 0;
+    struct input_events main_input_events, zero_input_events;
+    zero_input_events.keyboard_press_w = false;
+    zero_input_events.keyboard_release_w = false;
+    zero_input_events.keyboard_press_s = false;
+    zero_input_events.keyboard_release_s = false;
+    zero_input_events.keyboard_press_a = false;
+    zero_input_events.keyboard_release_a = false;
+    zero_input_events.keyboard_press_d = false;
+    zero_input_events.keyboard_release_d = false;
+    zero_input_events.keyboard_press_up = false;
+    zero_input_events.keyboard_release_up = false;
+    zero_input_events.keyboard_press_down = false;
+    zero_input_events.keyboard_release_down = false;
+    zero_input_events.keyboard_press_left = false;
+    zero_input_events.keyboard_release_left = false;
+    zero_input_events.keyboard_press_right = false;
+    zero_input_events.keyboard_release_right = false;
+    zero_input_events.keyboard_press_space = false;
 
     // Game loop begins here
     bool quit = false;
     while(!quit)
     {
-        struct input_events main_input_events = zeroed_input_events;
+        main_input_events = zero_input_events;
         SDL_Event event;
         while(SDL_PollEvent(&event))
         {
@@ -91,59 +94,49 @@ int main ()
                 {
                     switch(event.key.keysym.sym)
                     {
-                        case SDLK_RETURN:
-                        {
-                            main_input_events.keyboard_down_return = true;
-                        } break;
-
-                        case SDLK_BACKSPACE:
-                        {
-                            main_input_events.keyboard_down_backspace = true;
-                        } break;
-
                         case SDLK_SPACE:
                         {
-                            main_input_events.keyboard_down_space = true;
+                            main_input_events.keyboard_press_space = true;
                         } break;
 
                         case SDLK_w:
                         {
-                            main_input_events.keyboard_down_up = true;
+                            main_input_events.keyboard_press_w = true;
                         } break;
 
                         case SDLK_a:
                         {
-                            main_input_events.keyboard_down_left = true;
+                            main_input_events.keyboard_press_a = true;
                         } break;
 
                         case SDLK_s:
                         {
-                            main_input_events.keyboard_down_down = true;
+                            main_input_events.keyboard_press_s = true;
                         } break;
 
                         case SDLK_d:
                         {
-                            main_input_events.keyboard_down_right = true;
+                            main_input_events.keyboard_press_d = true;
                         } break;
 
                         case SDLK_UP:
                         {
-                            main_input_events.keyboard_down_up = true;
+                            main_input_events.keyboard_press_up = true;
                         } break;
 
                         case SDLK_LEFT:
                         {
-                            main_input_events.keyboard_down_left = true;
+                            main_input_events.keyboard_press_left = true;
                         } break;
 
                         case SDLK_DOWN:
                         {
-                            main_input_events.keyboard_down_down = true;
+                            main_input_events.keyboard_press_down = true;
                         } break;
 
                         case SDLK_RIGHT:
                         {
-                            main_input_events.keyboard_down_right = true;
+                            main_input_events.keyboard_press_right = true;
                         } break;
                     }
                 } break;
@@ -152,59 +145,44 @@ int main ()
                 {
                     switch(event.key.keysym.sym)
                     {
-                        case SDLK_RETURN:
-                        {
-                            main_input_events.keyboard_up_return = true;
-                        } break;
-
-                        case SDLK_BACKSPACE:
-                        {
-                            main_input_events.keyboard_up_backspace = true;
-                        } break;
-
-                        case SDLK_SPACE:
-                        {
-                            main_input_events.keyboard_up_space = true;
-                        } break;
-
                         case SDLK_w:
                         {
-                            main_input_events.keyboard_up_up = true;
+                            main_input_events.keyboard_release_w = true;
                         } break;
 
                         case SDLK_a:
                         {
-                            main_input_events.keyboard_up_left = true;
+                            main_input_events.keyboard_release_a = true;
                         } break;
 
                         case SDLK_s:
                         {
-                            main_input_events.keyboard_up_down = true;
+                            main_input_events.keyboard_release_s = true;
                         } break;
 
                         case SDLK_d:
                         {
-                            main_input_events.keyboard_up_right = true;
+                            main_input_events.keyboard_release_d = true;
                         } break;
 
                         case SDLK_UP:
                         {
-                            main_input_events.keyboard_up_up = true;
+                            main_input_events.keyboard_release_up = true;
                         } break;
 
                         case SDLK_LEFT:
                         {
-                            main_input_events.keyboard_up_left = true;
+                            main_input_events.keyboard_release_left = true;
                         } break;
 
                         case SDLK_DOWN:
                         {
-                            main_input_events.keyboard_up_down = true;
+                            main_input_events.keyboard_release_down = true;
                         } break;
 
                         case SDLK_RIGHT:
                         {
-                            main_input_events.keyboard_up_right = true;
+                            main_input_events.keyboard_release_right = true;
                         } break;
                     }
                 } break;
