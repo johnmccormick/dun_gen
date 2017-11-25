@@ -17,62 +17,57 @@ void render_game(struct pixel_buffer *buffer, struct game_state *game)
 
 	int next_level_offset_x = 0;
 	int next_level_offset_y = 0;
-
-	int next_levels_to_render = 0;
 	
+	int next_levels_to_render = game->next_render_depth;
+
 	struct level *most_next_level = NULL;
-	if (game->current_level->next_level != NULL && game->current_level->next_level->render_transition > 0)
+	int loop_depth = 0;
+	if (loop_depth < next_levels_to_render)
 	{
 		most_next_level = game->current_level->next_level;
-		for (;;)
+	}
+	while (loop_depth < next_levels_to_render)
+	{
+		most_next_level->frame_rendered = 0;
+
+ 		next_level_offset_x = next_level_offset_x + (most_next_level->prev_level->next_offset.x * tile_size);
+ 		next_level_offset_y = next_level_offset_y + (most_next_level->prev_level->next_offset.y * tile_size);
+
+		++loop_depth;
+
+		if (loop_depth < next_levels_to_render)
 		{
-			++next_levels_to_render;
-			most_next_level->frame_rendered = 0;
-
-			next_level_offset_x = next_level_offset_x + (most_next_level->prev_level->next_offset.x * tile_size);
-			next_level_offset_y = next_level_offset_y + (most_next_level->prev_level->next_offset.y * tile_size);
-
-			if (most_next_level->next_level != NULL && most_next_level->next_level->render_transition > 0)
-			{
-				most_next_level = most_next_level->next_level;
-			}
-			else
-			{
-				break;
-			}
+			most_next_level = most_next_level->next_level;
 		}
 	}
-
-	levels_to_render += next_levels_to_render;
 
 	int prev_level_offset_x = 0;
 	int prev_level_offset_y = 0;
 
-	int prev_levels_to_render = 0;
+	int prev_levels_to_render = game->prev_render_depth;
 
 	struct level *most_prev_level = NULL;
-	if (game->current_level->prev_level != NULL && game->current_level->prev_level->render_transition > 0)
+	loop_depth = 0;
+	if (loop_depth < prev_levels_to_render)
 	{
 		most_prev_level = game->current_level->prev_level;
-		while (most_prev_level != NULL && most_prev_level->render_transition > 0)
+	}
+	while (loop_depth < prev_levels_to_render)
+	{
+		most_prev_level->frame_rendered = 0;
+
+		prev_level_offset_x = prev_level_offset_x - (most_prev_level->next_offset.x * tile_size);
+		prev_level_offset_y = prev_level_offset_y - (most_prev_level->next_offset.y * tile_size);
+
+		++loop_depth;
+
+		if (loop_depth < prev_levels_to_render)
 		{
-			++prev_levels_to_render;
-			most_prev_level->frame_rendered = 0;
-
-			prev_level_offset_x = prev_level_offset_x - (most_prev_level->next_offset.x * tile_size);
-			prev_level_offset_y = prev_level_offset_y - (most_prev_level->next_offset.y * tile_size);
-
-			if (most_prev_level->prev_level != NULL && most_prev_level->prev_level->render_transition > 0)
-			{
-				most_prev_level = most_prev_level->prev_level;
-			}
-			else
-			{
-				break;
-			}
+			most_prev_level = most_prev_level->prev_level;
 		}
 	}
 
+	levels_to_render += next_levels_to_render;
 	levels_to_render += prev_levels_to_render;
 
 	while (levels_rendered < levels_to_render)
@@ -137,16 +132,16 @@ void render_game(struct pixel_buffer *buffer, struct game_state *game)
 				int tile_location = ((y / tile_size) * level_to_render->width) + (x / tile_size);
 				// Otherwise, what map tile is pixel on...											// Floor
 				if (*(level_to_render->map + tile_location) == 1)
-					*pixel++ = (uint8_t)(level_render_gradient * 0xff) << 16 | (uint8_t)(level_render_gradient * 0xff) << 8 | (uint8_t)(level_render_gradient * 0xff);
+					*pixel++ = (uint8_t)(0xff) << 24 | (uint8_t)(level_render_gradient * 0xff) << 16 | (uint8_t)(level_render_gradient * 0xff) << 8 | (uint8_t)(level_render_gradient * 0xff);
 				else if  																			// Wall
 					(*(level_to_render->map + tile_location) == 0)
-					*pixel++ = (uint8_t)(level_render_gradient * 0x22) << 16 | (uint8_t)(level_render_gradient * 0x22) << 8 | (uint8_t)(level_render_gradient * 0x22);
+					*pixel++ = (uint8_t)(0xff) << 24 | (uint8_t)(level_render_gradient * 0x22) << 16 | (uint8_t)(level_render_gradient * 0x22) << 8 | (uint8_t)(level_render_gradient * 0x22);
 				else if 														 					// Entrance
 					(*(level_to_render->map + tile_location) == 2)
-					*pixel++ = (uint8_t)(level_render_gradient * 0xff) << 16 | (uint8_t)(level_render_gradient * 0xff) << 8 | (uint8_t)(level_render_gradient * 0xff);
+					*pixel++ = (uint8_t)(0xff) << 24 | (uint8_t)(level_render_gradient * 0xff) << 16 | (uint8_t)(level_render_gradient * 0xff) << 8 | (uint8_t)(level_render_gradient * 0xff);
 				else if 																			// Exit
 					(*(level_to_render->map + tile_location) == 3)
-					*pixel++ = (uint8_t)(level_render_gradient * 0xff) << 16 | (uint8_t)(level_render_gradient * 0xff) << 8 | (uint8_t)(level_render_gradient * 0xff);
+					*pixel++ = (uint8_t)(0xff) << 24 | (uint8_t)(level_render_gradient * 0xff) << 16 | (uint8_t)(level_render_gradient * 0xff) << 8 | (uint8_t)(level_render_gradient * 0xff);
 			}
 			buffer_pointer += buffer->texture_pitch;
 		}
@@ -211,8 +206,8 @@ struct level *generate_level (struct level *prev_level)
 	int MIN_LEVEL_WIDTH = 3; 
 	int MIN_LEVEL_HEIGHT = 3;
 	
-	int MAX_LEVEL_WIDTH = 5;
-	int MAX_LEVEL_HEIGHT = 5;
+	int MAX_LEVEL_WIDTH = 16;
+	int MAX_LEVEL_HEIGHT = 9;
 
 	struct timeval time;
 	gettimeofday(&time, NULL);
@@ -413,6 +408,9 @@ void move_player (struct game_state *game, int x, int y)
 
 			game->player_1.x_transition += x * player_transition_time;
 			game->player_1.y_transition += y * player_transition_time;
+
+			++game->prev_render_depth;			
+			--game->next_render_depth;
 		}
 		// If on entrance, transport to previous map
 		else if ((game->player_1.x == game->current_level->entrance.x) && (game->player_1.y == game->current_level->entrance.y))
@@ -424,6 +422,9 @@ void move_player (struct game_state *game, int x, int y)
 
 			game->player_1.x_transition += x * player_transition_time;
 			game->player_1.y_transition += y * player_transition_time;
+
+			++game->next_render_depth;
+			--game->prev_render_depth;
 		}
 	}
 }
@@ -523,10 +524,17 @@ void main_game_loop (struct pixel_buffer *buffer, void *game_memory, struct inpu
 			game->current_level->next_level->render_transition = decrement_to_zero(game->current_level->next_level->render_transition);
 		}
 
+		int loop_depth = 0;
+		int deepest_render = 0;
 		struct level *most_next_level = game->current_level->next_level;
-		while (most_next_level != NULL)
+		while (most_next_level != NULL && (loop_depth < game->next_render_depth || most_next_level->render_transition > 0))
 		{
-			if (most_next_level->next_level != NULL && most_next_level->next_level->render_transition > 0)
+			++loop_depth;
+			if (most_next_level->render_transition > 0)
+			{
+				deepest_render = loop_depth;
+			}
+			if (most_next_level->next_level != NULL)
 			{
 				most_next_level->next_level->render_transition = decrement_to_zero(most_next_level->next_level->render_transition);
 				most_next_level = most_next_level->next_level;
@@ -536,6 +544,7 @@ void main_game_loop (struct pixel_buffer *buffer, void *game_memory, struct inpu
 				break;
 			}
 		}
+		game->next_render_depth = deepest_render;
 
 		int blocks_to_entrance;
 		blocks_to_entrance = abs(game->current_level->entrance.y - game->player_1.y) + abs(game->current_level->entrance.x - game->player_1.x);
@@ -552,10 +561,17 @@ void main_game_loop (struct pixel_buffer *buffer, void *game_memory, struct inpu
 			}
 		}
 
+		loop_depth = 0;
+		deepest_render = 0;
 		struct level *most_prev_level = game->current_level->prev_level;
-		while (most_prev_level != NULL)
+		while (most_prev_level != NULL && (loop_depth < game->prev_render_depth || most_prev_level->render_transition > 0))
 		{
-			if (most_prev_level->prev_level != NULL && most_prev_level->prev_level->render_transition > 0)
+			++loop_depth;
+			if (most_prev_level->render_transition > 0)
+			{
+				deepest_render = loop_depth;
+			}
+			if (most_prev_level->prev_level != NULL)
 			{
 				most_prev_level->prev_level->render_transition = decrement_to_zero(most_prev_level->prev_level->render_transition);
 				most_prev_level = most_prev_level->prev_level;
@@ -565,6 +581,7 @@ void main_game_loop (struct pixel_buffer *buffer, void *game_memory, struct inpu
 				break;
 			}
 		}
+		game->prev_render_depth = deepest_render;
 
 		clear_backround(buffer);
 		render_game(buffer, game);

@@ -73,8 +73,10 @@ struct game_state
 	bool paused;
 	struct level *current_level;
 	struct player player_1;
+	int next_render_depth;
+	int prev_render_depth;
 };
 
 int tile_size = 20;
-int level_transition_time = 100;
+int level_transition_time = 150;
 int player_transition_time = 10;
