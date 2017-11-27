@@ -15,8 +15,8 @@ int main ()
         "Map Generator",
         SDL_WINDOWPOS_UNDEFINED,
         SDL_WINDOWPOS_UNDEFINED,
-        500, 600,
-        SDL_WINDOW_SHOWN
+        800, 600,
+        SDL_WINDOW_FULLSCREEN_DESKTOP
     );
 
     if (window == NULL) {

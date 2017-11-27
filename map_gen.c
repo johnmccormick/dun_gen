@@ -17,6 +17,13 @@ void *push_struct (struct memory_arena *game_storage, int struct_size)
 	return result;
 }
 
+void initialise_memory_arena (struct memory_arena *game_storage, uint8_t *base, int storage_size)
+{
+	game_storage->base = base;
+	game_storage->size = storage_size;
+	game_storage->used = 0;
+};
+
 void render_game(struct pixel_buffer *buffer, struct game_state *game)
 {
 	// Converts player map coordinate to centered position in terms of pixels
@@ -483,13 +490,6 @@ void process_input_key_release(struct game_state *game, int KEY_X)
 	game->input_keys[KEY_X].prev_key = NULL;
 }
 
-void initialise_memory_arena (struct memory_arena *game_storage, uint8_t *base, int storage_size)
-{
-	game_storage->base = base;
-	game_storage->size = storage_size;
-	game_storage->used = 0;
-};
-
 void main_game_loop (struct pixel_buffer *buffer, struct memory_block platform_memory, struct input_events input)
 {
 	struct game_state *game = platform_memory.address;
@@ -497,9 +497,9 @@ void main_game_loop (struct pixel_buffer *buffer, struct memory_block platform_m
 	if (!game->initialised)
 	{
 		// Visual settings
-		game->tile_size = 20;
-		game->level_transition_time = 150;
-		game->player_transition_time = 10;
+		game->tile_size = 30;
+		game->level_transition_time = 250;
+		game->player_transition_time = 8;
 	
 		// Setup memory arena
 		initialise_memory_arena(&game->world_memory, (uint8_t *)platform_memory.address + sizeof(struct game_state), platform_memory.storage_size - (sizeof(struct game_state)));
@@ -598,7 +598,7 @@ void main_game_loop (struct pixel_buffer *buffer, struct memory_block platform_m
 		{
 			process_input_key_press(game, KEY_RIGHT);
 		}
-		if (input.keyboard_release_right && game->input_keys[KEY_DOWN].is_down)
+		if (input.keyboard_release_right && game->input_keys[KEY_RIGHT].is_down)
 		{
 			process_input_key_release(game, KEY_RIGHT);
 		}
