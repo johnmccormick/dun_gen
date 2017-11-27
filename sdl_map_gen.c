@@ -15,7 +15,7 @@ int main ()
         "Map Generator",
         SDL_WINDOWPOS_UNDEFINED,
         SDL_WINDOWPOS_UNDEFINED,
-        700, 700,
+        500, 600,
         SDL_WINDOW_SHOWN
     );
 
@@ -51,10 +51,12 @@ int main ()
 
     main_buffer->pixels = malloc(main_buffer->client_width * main_buffer->client_height * main_buffer->bytes_per_pixel);
 
-    // Game state will take this address, meaning all of it's values are initialised to zero
-    int game_memory_size = 1024;
-    void *game_memory = malloc(game_memory_size);
-    memset(game_memory, 0, game_memory_size);
+    struct memory_block platform_memory;
+    // 64mb should be good for around 2.5 million levels
+    // with max level width/height set to 16/9.
+    platform_memory.storage_size = (1024 * 1024 * 64);
+    platform_memory.address = malloc(platform_memory.storage_size);
+    memset(platform_memory.address, 0, platform_memory.storage_size);
 
     struct input_events main_input_events, zero_input_events;
     zero_input_events.keyboard_press_w = false;
@@ -74,6 +76,8 @@ int main ()
     zero_input_events.keyboard_press_right = false;
     zero_input_events.keyboard_release_right = false;
     zero_input_events.keyboard_press_space = false;
+    zero_input_events.keyboard_release_shift = false;
+    zero_input_events.keyboard_press_shift = false;
 
     // Game loop begins here
     bool quit = false;
@@ -138,6 +142,11 @@ int main ()
                         {
                             main_input_events.keyboard_press_right = true;
                         } break;
+
+                        case SDLK_LSHIFT:
+                        {
+                            main_input_events.keyboard_press_shift = true;
+                        } break;
                     }
                 } break;
 
@@ -184,12 +193,17 @@ int main ()
                         {
                             main_input_events.keyboard_release_right = true;
                         } break;
+
+                        case SDLK_LSHIFT:
+                        {
+                            main_input_events.keyboard_release_shift = true;
+                        } break;
                     }
                 } break;
             }
         }
 
-        main_game_loop(main_buffer, game_memory, main_input_events);
+        main_game_loop(main_buffer, platform_memory, main_input_events);
 
         // Now apply pixel buffer to texture
         if(SDL_UpdateTexture(texture,
@@ -206,6 +220,9 @@ int main ()
 
         SDL_RenderPresent(renderer);
     }
+
+    // free(main_buffer);
+    // free(platform_memory.address);
 
     SDL_Quit();
 

@@ -3,32 +3,32 @@ int make_neg_zero (int x)
 	return (x < 0 ? 0 : x);
 }
 
-int increment_to_max (int incremement, int transition_time)
+int increment_to_max (int value, int max_value)
 {
-	if (incremement < transition_time)
+	if (value < max_value)
 	{
-		incremement++;
+		++value;
 	}
 
-	return incremement;
+	return value;
 }
 
-int increment_to_zero (int incremement)
+int increment_to_zero (int value)
 {
-	if (incremement < 0)
+	if (value < 0)
 	{
-		incremement++;
+		value++;
 	}
 
-	return incremement;
+	return value;
 }
 
-int decrement_to_zero (int decrement)
+int decrement_to_zero (int value)
 {
-	if (decrement > 0)
+	if (value > 0)
 	{
-		decrement--;
+		value--;
 	}
 
-	return decrement;
+	return value;
 }

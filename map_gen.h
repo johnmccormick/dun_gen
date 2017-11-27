@@ -23,6 +23,8 @@ struct input_events
     bool keyboard_press_right;
     bool keyboard_release_right;
     bool keyboard_press_space;
+    bool keyboard_press_shift;
+    bool keyboard_release_shift;
 };
 
 #define KEY_W 0
@@ -33,10 +35,10 @@ struct input_events
 #define KEY_DOWN 5
 #define KEY_LEFT 6
 #define KEY_RIGHT 7
+#define KEY_SHIFT 8
 
 struct input_key
 {
-	int id;
 	bool is_down;
 	struct input_key *prev_key;
 	struct input_key *next_key;
@@ -86,17 +88,38 @@ struct player
 	struct coord_offset move_direction;
 };
 
+struct memory_block
+{
+	void *address;
+	uint storage_size;
+};
+
+struct memory_arena
+{
+	uint8_t *base;
+	size_t size;
+	size_t used;
+};
+
 struct game_state
 {
 	bool initialised;
-	bool paused;
+
+	struct memory_arena world_memory;
+	
+	int tile_size;
+
 	struct level *current_level;
 	struct player player_1;
-	int tile_size;
+
 	int level_transition_time;
 	int player_transition_time;
+
 	int next_render_depth;
 	int prev_render_depth;
+
 	struct input_key *input_keys;
 	struct input_key *last_input_key;
+
+	bool paused;
 };

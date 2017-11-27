@@ -1,6 +1,22 @@
 #include "map_gen.h"
 #include "map_math.c"
 
+void *push_struct (struct memory_arena *game_storage, int struct_size)
+{
+	void *result = NULL;
+	if (game_storage->used + struct_size <= game_storage->size)
+	{
+		result = game_storage->base + game_storage->used;
+		game_storage->used += struct_size;
+	}
+	else 
+	{
+		printf("Memory arena full\n");
+	}
+
+	return result;
+}
+
 void render_game(struct pixel_buffer *buffer, struct game_state *game)
 {
 	// Converts player map coordinate to centered position in terms of pixels
@@ -199,9 +215,9 @@ void clear_backround (struct pixel_buffer *buffer)
 	}
 }
 
-struct level *generate_level (struct level *prev_level)
+struct level *generate_level (struct memory_arena *world_memory, struct level *prev_level)
 {
-	struct level *new_level = malloc(sizeof(struct level));
+	struct level *new_level = push_struct(world_memory, sizeof(struct level));
 
 	// Max w/h should always be >= 3
 	// otherwise there can be no door
@@ -231,8 +247,7 @@ struct level *generate_level (struct level *prev_level)
 	new_level->width = (rand() % (MAX_LEVEL_WIDTH - MIN_LEVEL_WIDTH + 1)) + MIN_LEVEL_WIDTH;
 	new_level->height = (rand() % (MAX_LEVEL_HEIGHT - MIN_LEVEL_HEIGHT + 1)) + MIN_LEVEL_HEIGHT;
 
-	new_level->map = malloc(sizeof(int) * new_level->width * new_level->height);
-	memset(new_level->map, 0, sizeof(int) * new_level->width * new_level->height);
+	new_level->map = push_struct(world_memory, (sizeof(int) * new_level->width * new_level->height));
 
 	for (int y = 0; y < new_level->height; ++y)
 	{
@@ -400,7 +415,7 @@ void move_player (struct game_state *game, int x, int y)
 				game->current_level->prev_level = last_level;
 
 				// Create next level
-				game->current_level->next_level = generate_level(game->current_level);
+				game->current_level->next_level = generate_level(&game->world_memory, game->current_level);
 
 				game->current_level->next_offset = calculate_next_offsets(*game->current_level);
 			}
@@ -437,13 +452,12 @@ void setup_input_keys(struct game_state *game, int key_count)
 	struct input_key temp_input_key;
 	for (int i = 0; i < key_count; ++i)
 	{
-		temp_input_key.id = i;
 	    temp_input_key.is_down = false;
 	    game->input_keys[i] = temp_input_key;
 	}
 }
 
-void process_input_key_down(struct game_state *game, int KEY_X)
+void process_input_key_press(struct game_state *game, int KEY_X)
 {
 	game->input_keys[KEY_X].is_down = true;
 	game->input_keys[KEY_X].prev_key = game->last_input_key;
@@ -453,7 +467,7 @@ void process_input_key_down(struct game_state *game, int KEY_X)
 	game->last_input_key = &game->input_keys[KEY_X];
 }
 
-void process_input_key_up(struct game_state *game, int KEY_X)
+void process_input_key_release(struct game_state *game, int KEY_X)
 {
 	game->input_keys[KEY_X].is_down = false;
 	if (game->input_keys[KEY_X].next_key != NULL)
@@ -469,9 +483,16 @@ void process_input_key_up(struct game_state *game, int KEY_X)
 	game->input_keys[KEY_X].prev_key = NULL;
 }
 
-void main_game_loop (struct pixel_buffer *buffer, void *game_memory, struct input_events input)
+void initialise_memory_arena (struct memory_arena *game_storage, uint8_t *base, int storage_size)
 {
-	struct game_state *game = game_memory;
+	game_storage->base = base;
+	game_storage->size = storage_size;
+	game_storage->used = 0;
+};
+
+void main_game_loop (struct pixel_buffer *buffer, struct memory_block platform_memory, struct input_events input)
+{
+	struct game_state *game = platform_memory.address;
 
 	if (!game->initialised)
 	{
@@ -480,14 +501,19 @@ void main_game_loop (struct pixel_buffer *buffer, void *game_memory, struct inpu
 		game->level_transition_time = 150;
 		game->player_transition_time = 10;
 	
-		game->input_keys = malloc(sizeof(struct input_key) * 8);
+		// Setup memory arena
+		initialise_memory_arena(&game->world_memory, (uint8_t *)platform_memory.address + sizeof(struct game_state), platform_memory.storage_size - (sizeof(struct game_state)));
 
-		setup_input_keys(game, 8);
+		int input_key_count = 9;
+
+		game->input_keys = push_struct(&game->world_memory, sizeof(struct input_key) * input_key_count);
+
+		setup_input_keys(game, input_key_count);
 
 	    game->last_input_key = NULL;
 
 	    // Create initial level
-		game->current_level = generate_level(NULL);
+		game->current_level = generate_level(&game->world_memory, NULL);
 		game->current_level->render_transition = 0;
 
 		// Center player
@@ -495,7 +521,7 @@ void main_game_loop (struct pixel_buffer *buffer, void *game_memory, struct inpu
 		game->player_1.y = game->current_level->height / 2;
 
 		// Prep next level
-		game->current_level->next_level = generate_level(game->current_level);
+		game->current_level->next_level = generate_level(&game->world_memory, game->current_level);
 		game->current_level->next_offset = calculate_next_offsets(*game->current_level);
 		
 		struct level *this_level = game->current_level;
@@ -514,67 +540,75 @@ void main_game_loop (struct pixel_buffer *buffer, void *game_memory, struct inpu
 	{
 		if (input.keyboard_press_w && !game->input_keys[KEY_W].is_down)
 		{
-			process_input_key_down(game, KEY_W);
+			process_input_key_press(game, KEY_W);
 		}
 		if (input.keyboard_release_w && game->input_keys[KEY_W].is_down)
 		{
-			process_input_key_up(game, KEY_W);
+			process_input_key_release(game, KEY_W);
 		}
 		if (input.keyboard_press_a && !game->input_keys[KEY_A].is_down)
 		{
-			process_input_key_down(game, KEY_A);
+			process_input_key_press(game, KEY_A);
 		}
 		if (input.keyboard_release_a && game->input_keys[KEY_A].is_down)
 		{
-			process_input_key_up(game, KEY_A);
+			process_input_key_release(game, KEY_A);
 		}
 		if (input.keyboard_press_s && !game->input_keys[KEY_S].is_down)
 		{
-			process_input_key_down(game, KEY_S);
+			process_input_key_press(game, KEY_S);
 		}
 		if (input.keyboard_release_s && game->input_keys[KEY_S].is_down)
 		{
-			process_input_key_up(game, KEY_S);
+			process_input_key_release(game, KEY_S);
 		}
 		if (input.keyboard_press_d && !game->input_keys[KEY_D].is_down)
 		{
-			process_input_key_down(game, KEY_D);
+			process_input_key_press(game, KEY_D);
 		}
 		if (input.keyboard_release_d && game->input_keys[KEY_D].is_down)
 		{
-			process_input_key_up(game, KEY_D);
+			process_input_key_release(game, KEY_D);
 		}
 		if (input.keyboard_press_up && !game->input_keys[KEY_UP].is_down)
 		{
-			process_input_key_down(game, KEY_UP);
+			process_input_key_press(game, KEY_UP);
 		}
 		if (input.keyboard_release_up && game->input_keys[KEY_UP].is_down)
 		{
-			process_input_key_up(game, KEY_UP);
+			process_input_key_release(game, KEY_UP);
 		}
 		if (input.keyboard_press_left && !game->input_keys[KEY_LEFT].is_down)
 		{
-			process_input_key_down(game, KEY_LEFT);
+			process_input_key_press(game, KEY_LEFT);
 		}
 		if (input.keyboard_release_left && game->input_keys[KEY_LEFT].is_down)
 		{
-			process_input_key_up(game, KEY_LEFT);
+			process_input_key_release(game, KEY_LEFT);
 		}
 		if (input.keyboard_press_down && !game->input_keys[KEY_DOWN].is_down)
 		{
-			process_input_key_down(game, KEY_DOWN);
+			process_input_key_press(game, KEY_DOWN);
 		}
 		if (input.keyboard_release_down && game->input_keys[KEY_DOWN].is_down)
 		{
-			process_input_key_up(game, KEY_DOWN);
+			process_input_key_release(game, KEY_DOWN);
 		}
 		if (input.keyboard_press_right && !game->input_keys[KEY_RIGHT].is_down)
 		{
-			process_input_key_down(game, KEY_RIGHT);
+			process_input_key_press(game, KEY_RIGHT);
 		}
 		if (input.keyboard_release_right && game->input_keys[KEY_DOWN].is_down)
 		{
-			process_input_key_up(game, KEY_RIGHT);
+			process_input_key_release(game, KEY_RIGHT);
+		}
+		if (input.keyboard_press_shift && !game->input_keys[KEY_SHIFT].is_down)
+		{
+			game->input_keys[KEY_SHIFT].is_down = true;
+		}
+		if (input.keyboard_release_shift && game->input_keys[KEY_SHIFT].is_down)
+		{
+			game->input_keys[KEY_SHIFT].is_down = false;
 		}
 
 		struct coord_offset new_move_direction;
@@ -610,6 +644,14 @@ void main_game_loop (struct pixel_buffer *buffer, void *game_memory, struct inpu
 
 		if (game->player_1.x_transition == 0 && game->player_1.y_transition == 0 && (game->player_1.move_direction.x != 0 || game->player_1.move_direction.y != 0))
 		{
+			if (game->input_keys[KEY_SHIFT].is_down)
+			{
+				game->player_transition_time = 5;
+			}
+			if (!game->input_keys[KEY_SHIFT].is_down)
+			{
+				game->player_transition_time = 10;
+			}
 			move_player(game, game->player_1.move_direction.x, game->player_1.move_direction.y);
 		}
 
