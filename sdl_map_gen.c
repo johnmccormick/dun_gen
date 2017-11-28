@@ -16,7 +16,7 @@ int main ()
         SDL_WINDOWPOS_UNDEFINED,
         SDL_WINDOWPOS_UNDEFINED,
         800, 600,
-        SDL_WINDOW_FULLSCREEN_DESKTOP
+        SDL_WINDOW_SHOWN
     );
 
     if (window == NULL) {
