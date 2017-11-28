@@ -94,16 +94,18 @@ struct level
 
 struct level_position
 {
-	int tile;
-	int pixel;
+	int tile_x;
+	int tile_y;
+
+	int pixel_x;
+	int pixel_y;
 };
 
 struct player
 {
 	int tile_width;
 	int tile_height;
-	struct level_position x_position;
-	struct level_position y_position;
+	struct level_position position;
 	// int x_velocity;
 	// int y_velocity;
 };
