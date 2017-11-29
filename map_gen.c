@@ -24,6 +24,34 @@ void initialise_memory_arena (struct memory_arena *game_storage, uint8_t *base, 
 	game_storage->used = 0;
 };
 
+uint32_t create_colour(uint8_t a, uint8_t r, uint8_t g, uint8_t b, float level_render_gradient)
+{
+	uint32_t colour = 0;
+
+	colour = (uint8_t)(a) << 24 | (uint8_t)(level_render_gradient * r) << 16 | (uint8_t)(level_render_gradient * g) << 8 | (uint8_t)(level_render_gradient * b);
+
+	return colour;
+}
+
+uint32_t get_tile_colour (int tile_value, float level_render_gradient)
+{
+	uint32_t colour = 0;
+
+	// Floor / Entrance / Exit
+	if (tile_value == 1 || tile_value == 2 || tile_value == 3)
+	{
+		colour = create_colour(0xff, 0xff, 0xff, 0xff, level_render_gradient);
+	}
+	// Wall
+	else if (tile_value == 0)
+	{
+		//printf("no\n");
+		colour = create_colour(0xff, 0x22, 0x22, 0x22, level_render_gradient);
+	}
+
+	return colour;
+}
+
 void render_game(struct pixel_buffer *buffer, struct game_state *game)
 {
 	// Converts player map coordinate to centered position in terms of pixels
@@ -155,18 +183,12 @@ void render_game(struct pixel_buffer *buffer, struct game_state *game)
 			for (int x = first_tile_x; x < last_tile_x; ++x)
 			{
 				int tile_location = ((y / game->tile_size) * level_to_render->width) + (x / game->tile_size);
-				// Otherwise, what map tile is pixel on...											// Floor
-				if (*(level_to_render->map + tile_location) == 1)
-					*pixel++ = (uint8_t)(0xff) << 24 | (uint8_t)(level_render_gradient * 0xff) << 16 | (uint8_t)(level_render_gradient * 0xff) << 8 | (uint8_t)(level_render_gradient * 0xff);
-				else if  																			// Wall
-					(*(level_to_render->map + tile_location) == 0)
-					*pixel++ = (uint8_t)(0xff) << 24 | (uint8_t)(level_render_gradient * 0x22) << 16 | (uint8_t)(level_render_gradient * 0x22) << 8 | (uint8_t)(level_render_gradient * 0x22);
-				else if 														 					// Entrance
-					(*(level_to_render->map + tile_location) == 2)
-					*pixel++ = (uint8_t)(0xff) << 24 | (uint8_t)(level_render_gradient * 0xff) << 16 | (uint8_t)(level_render_gradient * 0xff) << 8 | (uint8_t)(level_render_gradient * 0xff);
-				else if 																			// Exit
-					(*(level_to_render->map + tile_location) == 3)
-					*pixel++ = (uint8_t)(0xff) << 24 | (uint8_t)(level_render_gradient * 0xff) << 16 | (uint8_t)(level_render_gradient * 0xff) << 8 | (uint8_t)(level_render_gradient * 0xff);
+				int tile_value = *(level_to_render->map + tile_location);
+
+				uint32_t colour = get_tile_colour(tile_value, level_render_gradient);
+				//printf("%u\n", colour);
+
+				*pixel++ = colour;
 			}
 			buffer_pointer += buffer->texture_pitch;
 		}
