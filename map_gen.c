@@ -32,11 +32,12 @@ uint32_t create_colour(float a, uint8_t r, uint8_t g, uint8_t b, uint32_t *pixel
 	uint8_t buffer_green = (*pixel >> 8) & 0xff;
 	uint8_t buffer_blue = (*pixel) & 0xff;
 
-	uint8_t result_red = buffer_red + (a * (r - a));
-	uint8_t result_green = buffer_green + (a * (g - a));
-	uint8_t result_blue = buffer_blue + (a * (b - a));
+	// Linear alpha blend of new and old pixels.
+	float result_red = buffer_red + (a * (r - buffer_red));
+	float result_green = buffer_green + (a * (g - buffer_green));
+	float result_blue = buffer_blue + (a * (b - buffer_blue));
 
-	colour = (uint8_t)(result_red) << 16 | (uint8_t)(result_green) << 8 | (uint8_t)(result_blue);
+	colour = (uint8_t)(result_red + 0.5f) << 16 | (uint8_t)(result_green + 0.5f) << 8 | (uint8_t)(result_blue + 0.5f);
 
 	return colour;
 }
