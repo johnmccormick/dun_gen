@@ -202,8 +202,6 @@ void render_game(struct pixel_buffer *buffer, struct game_state *game)
 		level_to_render->frame_rendered = 1;
 
 		levels_rendered++;
-
-		printf("level_render_gradient %f\n", level_render_gradient);
 	}
 
 	uint8_t *player_pointer = (uint8_t *)buffer->pixels;
