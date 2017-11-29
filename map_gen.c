@@ -24,29 +24,36 @@ void initialise_memory_arena (struct memory_arena *game_storage, uint8_t *base, 
 	game_storage->used = 0;
 };
 
-uint32_t create_colour(uint8_t a, uint8_t r, uint8_t g, uint8_t b, float level_render_gradient)
+uint32_t create_colour(float a, uint8_t r, uint8_t g, uint8_t b, uint32_t *pixel)
 {
 	uint32_t colour = 0;
 
-	colour = (uint8_t)(a) << 24 | (uint8_t)(level_render_gradient * r) << 16 | (uint8_t)(level_render_gradient * g) << 8 | (uint8_t)(level_render_gradient * b);
+	uint8_t buffer_red = (*pixel >> 16) & 0xff;
+	uint8_t buffer_green = (*pixel >> 8) & 0xff;
+	uint8_t buffer_blue = (*pixel) & 0xff;
+
+	uint8_t result_red = buffer_red + (a * (r - a));
+	uint8_t result_green = buffer_green + (a * (g - a));
+	uint8_t result_blue = buffer_blue + (a * (b - a));
+
+	colour = (uint8_t)(result_red) << 16 | (uint8_t)(result_green) << 8 | (uint8_t)(result_blue);
 
 	return colour;
 }
 
-uint32_t get_tile_colour (int tile_value, float level_render_gradient)
+uint32_t get_tile_colour (int tile_value, float level_render_gradient, uint32_t *pixel)
 {
 	uint32_t colour = 0;
 
 	// Floor / Entrance / Exit
 	if (tile_value == 1 || tile_value == 2 || tile_value == 3)
 	{
-		colour = create_colour(0xff, 0xff, 0xff, 0xff, level_render_gradient);
+		colour = create_colour(level_render_gradient, 0xff, 0xff, 0xff, pixel);
 	}
 	// Wall
 	else if (tile_value == 0)
 	{
-		//printf("no\n");
-		colour = create_colour(0xff, 0x22, 0x22, 0x22, level_render_gradient);
+		colour = create_colour(level_render_gradient, 0x22, 0x22, 0x22, pixel);
 	}
 
 	return colour;
@@ -185,8 +192,7 @@ void render_game(struct pixel_buffer *buffer, struct game_state *game)
 				int tile_location = ((y / game->tile_size) * level_to_render->width) + (x / game->tile_size);
 				int tile_value = *(level_to_render->map + tile_location);
 
-				uint32_t colour = get_tile_colour(tile_value, level_render_gradient);
-				//printf("%u\n", colour);
+				uint32_t colour = get_tile_colour(tile_value, level_render_gradient, pixel);
 
 				*pixel++ = colour;
 			}
@@ -196,6 +202,8 @@ void render_game(struct pixel_buffer *buffer, struct game_state *game)
 		level_to_render->frame_rendered = 1;
 
 		levels_rendered++;
+
+		printf("level_render_gradient %f\n", level_render_gradient);
 	}
 
 	uint8_t *player_pointer = (uint8_t *)buffer->pixels;
@@ -228,8 +236,6 @@ void render_game(struct pixel_buffer *buffer, struct game_state *game)
 	{
 		game->player_1.y_transition = increment_to_zero(game->player_1.y_transition);
 	}
-
-
 }
 
 void clear_backround (struct pixel_buffer *buffer)
@@ -520,8 +526,8 @@ void main_game_loop (struct pixel_buffer *buffer, struct memory_block platform_m
 	{
 		// Visual settings
 		game->tile_size = 30;
-		game->level_transition_time = 250;
-		game->player_transition_time = 8;
+		game->level_transition_time = 150;
+		game->player_transition_time = 10;
 	
 		// Setup memory arena
 		initialise_memory_arena(&game->world_memory, (uint8_t *)platform_memory.address + sizeof(struct game_state), platform_memory.storage_size - (sizeof(struct game_state)));
@@ -668,7 +674,7 @@ void main_game_loop (struct pixel_buffer *buffer, struct memory_block platform_m
 		{
 			if (game->input_keys[KEY_SHIFT].is_down)
 			{
-				game->player_transition_time = 5;
+				game->player_transition_time = 6;
 			}
 			if (!game->input_keys[KEY_SHIFT].is_down)
 			{
