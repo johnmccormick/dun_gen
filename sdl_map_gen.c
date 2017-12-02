@@ -1,6 +1,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <sys/types.h>
+#include <time.h>
 #include <sys/mman.h>
 #include <SDL2/SDL.h>
 #include <math.h>
@@ -78,6 +79,12 @@ int main ()
     zero_input_events.keyboard_press_space = false;
     zero_input_events.keyboard_release_shift = false;
     zero_input_events.keyboard_press_shift = false;
+
+    float target_fps = 60.0f;
+    float target_spf = 1 / target_fps;
+    main_input_events.frame_t = target_spf;
+    clock_t last_t, end_t;
+    float total_t;
 
     // Game loop begins here
     bool quit = false;
@@ -217,6 +224,19 @@ int main ()
         {
             printf("Could not render copy: %s\n", SDL_GetError());
         }
+
+        end_t = clock();
+        total_t = (float)(end_t - last_t) / CLOCKS_PER_SEC;
+
+        while (total_t < target_spf)
+        {
+            float seconds_to_delay = target_spf - total_t;
+            SDL_Delay(seconds_to_delay * 1000);
+            end_t = clock();
+            total_t = (float)(end_t - last_t) / CLOCKS_PER_SEC;
+        }
+        printf("FPS %f\n", 1 / total_t);
+        last_t = clock();
 
         SDL_RenderPresent(renderer);
     }

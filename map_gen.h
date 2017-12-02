@@ -25,6 +25,8 @@ struct input_events
     bool keyboard_press_space;
     bool keyboard_press_shift;
     bool keyboard_release_shift;
+
+    float frame_t;
 };
 
 #define KEY_W 0
