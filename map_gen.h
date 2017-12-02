@@ -55,7 +55,7 @@ struct pixel_buffer
     int texture_pitch;
 };
 
-struct coord_offset
+struct tile_offset
 {
 	int x;
 	int y;
@@ -65,29 +65,6 @@ struct door
 {
 	int x;
 	int y;
-};
-
-struct level
-{
-	int *map;
-	int width;
-	int height;
-	struct door entrance;
-	struct door exit;
-	struct level *prev_level;
-	struct level *next_level;
-	struct coord_offset next_offset;
-	int render_transition;
-	bool frame_rendered;
-};
-
-struct player
-{
-	int x;
-	int y;
-	int x_transition;
-	int y_transition;
-	struct coord_offset move_direction;
 };
 
 struct memory_block
@@ -103,6 +80,38 @@ struct memory_arena
 	size_t used;
 };
 
+struct level
+{
+	int *map;
+	int width;
+	int height;
+	struct door entrance;
+	struct door exit;
+	struct level *prev_level;
+	struct level *next_level;
+	struct tile_offset next_offset;
+	float render_transition;
+	bool frame_rendered;
+};
+
+struct level_position
+{
+	int tile_x;
+	int tile_y;
+
+	float pixel_x;
+	float pixel_y;
+};
+
+struct player
+{
+	int tile_width;
+	int tile_height;
+	struct level_position position;
+	// int x_velocity;
+	// int y_velocity;
+};
+
 struct game_state
 {
 	bool initialised;
@@ -114,8 +123,9 @@ struct game_state
 	struct level *current_level;
 	struct player player_1;
 
-	int level_transition_time;
-	int player_transition_time;
+	int base_player_velocity;
+
+	float level_transition_time;
 
 	int next_render_depth;
 	int prev_render_depth;

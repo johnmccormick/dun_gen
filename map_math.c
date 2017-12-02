@@ -3,7 +3,7 @@ int make_neg_zero (int x)
 	return (x < 0 ? 0 : x);
 }
 
-int increment_to_max (int value, int max_value)
+int increment_to_max (float value, float increment, int max_value)
 {
 	if (value < max_value)
 	{
@@ -13,7 +13,7 @@ int increment_to_max (int value, int max_value)
 	return value;
 }
 
-int increment_to_zero (int value)
+int increment_to_zero (float value, float increment)
 {
 	if (value < 0)
 	{
@@ -23,7 +23,7 @@ int increment_to_zero (int value)
 	return value;
 }
 
-int decrement_to_zero (int value)
+int decrement_to_zero (float value, float increment)
 {
 	if (value > 0)
 	{
