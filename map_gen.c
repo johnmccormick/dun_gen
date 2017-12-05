@@ -653,25 +653,21 @@ void main_game_loop (struct pixel_buffer *buffer, struct memory_block platform_m
 
 		if (game->last_input_key)
 		{
-			if (game->last_input_key == &game->input_keys[KEY_W] || game->last_input_key == &game->input_keys[KEY_UP])
+			if (game->input_keys[KEY_W].is_down || game->input_keys[KEY_UP].is_down)
 			{
-				new_player_velocity_x = 0;
 				new_player_velocity_y = -game->base_player_velocity;
 			}
-			else if (game->last_input_key == &game->input_keys[KEY_A] || game->last_input_key == &game->input_keys[KEY_LEFT])
+			if (game->input_keys[KEY_A].is_down || game->input_keys[KEY_LEFT].is_down)
 			{
 				new_player_velocity_x = -game->base_player_velocity;
-				new_player_velocity_y = 0;
 			}
-			else if (game->last_input_key == &game->input_keys[KEY_S] || game->last_input_key == &game->input_keys[KEY_DOWN])
+			if (game->input_keys[KEY_S].is_down || game->input_keys[KEY_DOWN].is_down)
 			{
-				new_player_velocity_x = 0;
 				new_player_velocity_y = game->base_player_velocity;
 			}
-			else if (game->last_input_key == &game->input_keys[KEY_D] || game->last_input_key == &game->input_keys[KEY_RIGHT])
+			if (game->input_keys[KEY_D].is_down || game->input_keys[KEY_RIGHT].is_down)
 			{
 				new_player_velocity_x = game->base_player_velocity;
-				new_player_velocity_y = 0;
 			}
 		}
 		

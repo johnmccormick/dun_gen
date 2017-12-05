@@ -17,7 +17,7 @@ int main ()
         SDL_WINDOWPOS_UNDEFINED,
         SDL_WINDOWPOS_UNDEFINED,
         800, 600,
-        SDL_WINDOW_FULLSCREEN_DESKTOP
+        SDL_WINDOW_SHOWN
     );
 
     if (window == NULL) {
@@ -83,8 +83,10 @@ int main ()
     float target_fps = 60.0f;
     float target_spf = 1 / target_fps;
     zero_input_events.frame_t = target_spf;
-    clock_t last_t, end_t;
-    float total_t;
+
+    unsigned int last_t, end_t, total_t;
+
+    last_t = SDL_GetTicks();
 
     // Game loop begins here
     bool quit = false;
@@ -210,6 +212,16 @@ int main ()
             }
         }
 
+
+#if 0
+// Variable frame update
+        end_t = SDL_GetTicks();
+        total_t = end_t - last_t;
+        main_input_events.frame_t = (float)(total_t) / 1000;
+
+        last_t = SDL_GetTicks();
+#endif
+        
         main_game_loop(main_buffer, platform_memory, main_input_events);
 
         // Now apply pixel buffer to texture
@@ -225,21 +237,20 @@ int main ()
             printf("Could not render copy: %s\n", SDL_GetError());
         }
 
-        end_t = clock();
-        total_t = (float)(end_t - last_t) / CLOCKS_PER_SEC;
-
-        while (total_t < target_spf)
+#if 1
+// Fixed frame update
+        end_t = SDL_GetTicks();
+        total_t = end_t - last_t;
+        while (total_t < (target_spf * 1000))
         {
-            // Temporary 'CPU Melting' solution.
-            // Must write OS specific delay functionality
-            // to sleep with correct granularity 
-            end_t = clock();
-            total_t = (float)(end_t - last_t) / CLOCKS_PER_SEC;
+            end_t = SDL_GetTicks();
+            total_t = end_t - last_t;
         }
-        //printf("FPS %f\n", 1 / total_t);
-        last_t = clock();
-
+#endif
         SDL_RenderPresent(renderer);
+
+        last_t = SDL_GetTicks();
+
     }
 
     // free(main_buffer);
