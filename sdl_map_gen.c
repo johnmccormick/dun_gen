@@ -8,6 +8,11 @@
 
 #include "map_gen.c"
 
+float SDL_get_seconds_difference(uint counter_1, uint counter_2)
+{
+    return ((float)(counter_2 - counter_1) / (float)(SDL_GetPerformanceFrequency()));
+}
+
 int main () 
 {
     SDL_Init(SDL_INIT_VIDEO);
@@ -80,13 +85,16 @@ int main ()
     zero_input_events.keyboard_release_shift = false;
     zero_input_events.keyboard_press_shift = false;
 
-    float target_fps = 60.0f;
-    float target_spf = 1 / target_fps;
+    SDL_DisplayMode mode;
+    SDL_GetDesktopDisplayMode(0, &mode);
+    int target_fps = mode.refresh_rate;
+
+    float target_spf = 1.0f / (float)target_fps;
     zero_input_events.frame_t = target_spf;
 
-    unsigned int last_t, end_t, total_t;
+    uint64_t last_counter, pre_render_counter, total_counter;
 
-    last_t = SDL_GetTicks();
+    last_counter = SDL_GetPerformanceCounter();
 
     // Game loop begins here
     bool quit = false;
@@ -211,16 +219,6 @@ int main ()
                 } break;
             }
         }
-
-
-#if 0
-// Variable frame update
-        end_t = SDL_GetTicks();
-        total_t = end_t - last_t;
-        main_input_events.frame_t = (float)(total_t) / 1000;
-
-        last_t = SDL_GetTicks();
-#endif
         
         main_game_loop(main_buffer, platform_memory, main_input_events);
 
@@ -237,19 +235,22 @@ int main ()
             printf("Could not render copy: %s\n", SDL_GetError());
         }
 
-#if 1
-// Fixed frame update
-        end_t = SDL_GetTicks();
-        total_t = end_t - last_t;
-        while (total_t < (target_spf * 1000))
-        {
-            end_t = SDL_GetTicks();
-            total_t = end_t - last_t;
-        }
-#endif
-        SDL_RenderPresent(renderer);
+        // Get timestep for frame, wait until framerate in sync with refresh rate
+        uint64_t perf_frequency = SDL_GetPerformanceFrequency();
+        
+        pre_render_counter = SDL_GetPerformanceCounter();
+        total_counter = pre_render_counter - last_counter;
 
-        last_t = SDL_GetTicks();
+        float frame_s = ((float)total_counter / (float)perf_frequency);
+        while (frame_s < target_spf)
+        {
+            pre_render_counter = SDL_GetPerformanceCounter();
+            total_counter = pre_render_counter - last_counter;
+            frame_s = ((float)total_counter / (float)perf_frequency);
+        }
+        last_counter = SDL_GetPerformanceCounter();
+
+        SDL_RenderPresent(renderer);
 
     }
 

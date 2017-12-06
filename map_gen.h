@@ -108,8 +108,8 @@ struct player
 	int tile_width;
 	int tile_height;
 	struct level_position position;
-	// int x_velocity;
-	// int y_velocity;
+	int x_velocity;
+	int y_velocity;
 };
 
 struct game_state
