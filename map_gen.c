@@ -471,6 +471,18 @@ bool is_out_of_bounds(struct level_position player, struct level current_level)
 	return result;
 }
 
+bool is_collisionless(struct game_state *game, struct level current_level, struct level_position player_position)
+{
+	struct level_position position_result;
+	position_result = reoffset_tile_position(game, player_position);
+
+	int tile_result = get_tile_value(current_level, position_result);
+	
+	bool collision_result = ((tile_result) == 1 || (tile_result) == 2 || (tile_result) == 3);
+
+	return collision_result;
+}
+
 void setup_input_keys(struct game_state *game, int key_count)
 {
 	// Keycode definitions in map_gen.h
@@ -672,39 +684,91 @@ void main_game_loop (struct pixel_buffer *buffer, struct memory_block platform_m
 		}
 		
 		struct level_position old_player_position = game->player_1.position;
-		float player_position_delta_x = 0.0f;
-		float player_position_delta_y = 0.0f;
+		struct vector2 player_position_delta;
+		player_position_delta.x = 0.0f;
+		player_position_delta.y = 0.0f;
 
+		// Friction
 		new_player_acceleration_x += -10*game->player_1.x_velocity;
 		new_player_acceleration_y += -10*game->player_1.y_velocity;
 
-		player_position_delta_x = (1/2*new_player_acceleration_x*(pow(input.frame_t, 2))) + game->player_1.x_velocity*input.frame_t;
-		player_position_delta_y = (1/2*new_player_acceleration_y*(pow(input.frame_t, 2))) + game->player_1.y_velocity*input.frame_t;
+		// p = at^2 + vt + p
+		player_position_delta.x = (1/2*new_player_acceleration_x*(pow(input.frame_t, 2))) + game->player_1.x_velocity*input.frame_t;
+		player_position_delta.y = (1/2*new_player_acceleration_y*(pow(input.frame_t, 2))) + game->player_1.y_velocity*input.frame_t;
 
+		// v = 2at + v.  // a = a
 		game->player_1.x_velocity = (new_player_acceleration_x * input.frame_t) + game->player_1.x_velocity;
 		game->player_1.y_velocity = (new_player_acceleration_y * input.frame_t) + game->player_1.y_velocity;
 
 		struct level_position new_player_position = old_player_position;
-		new_player_position.pixel_x += player_position_delta_x;
-		new_player_position.pixel_y += player_position_delta_y;
+		new_player_position.pixel_x += player_position_delta.x;
+		new_player_position.pixel_y += player_position_delta.y;
 
 		new_player_position = reoffset_tile_position(game, new_player_position);
 
+		// Loop over tiles in collision region:
+		// int min_tile_x = minimum_int(new_player_position.tile_x, old_player_position.tile_x);
+		// int max_tile_x = maximum_int(new_player_position.tile_x, old_player_position.tile_x);
+		// int min_tile_y = minimum_int(new_player_position.tile_y, old_player_position.tile_y);
+		// int max_tile_y = maximum_int(new_player_position.tile_y, old_player_position.tile_y);
+
 		struct level current_level = *game->current_level;
 
-		int old_tile_value = get_tile_value(current_level, old_player_position);
-		int new_tile_value = get_tile_value(current_level, new_player_position);
+		struct level_position new_player_position_x = old_player_position;
+		new_player_position_x.pixel_x += player_position_delta.x;
 
-		if ((new_tile_value) == 1 || (new_tile_value) == 2 || (new_tile_value) == 3)
+		struct level_position new_player_position_y = old_player_position;
+		new_player_position_y.pixel_y += player_position_delta.y;
+
+		bool wall_collision_x = !is_collisionless(game, current_level, new_player_position_x);
+		bool wall_collision_y = !is_collisionless(game, current_level, new_player_position_y);
+
+		bool out_of_bounds = is_out_of_bounds(new_player_position, current_level);
+
+		struct vector2 reflection_normal;
+		reflection_normal.x = 0;
+		reflection_normal.y = 0;
+
+		struct vector2 velocity;
+		velocity.x = game->player_1.x_velocity;
+		velocity.y = game->player_1.y_velocity;
+
+		if (wall_collision_x && !out_of_bounds)
+		{
+			if (player_position_delta.x > 0)
+			{
+				reflection_normal.x = -1.0f;
+			}
+			else if (player_position_delta.x < 0)
+			{
+				reflection_normal.x = 1.0f;
+			}
+			game->player_1.x_velocity -= (1*dot_product(velocity, reflection_normal)*reflection_normal.x);
+		}
+		else if (wall_collision_y && !out_of_bounds)
+		{
+			if (player_position_delta.y > 0)
+			{
+				reflection_normal.y = -1.0f;
+			}
+			else if (player_position_delta.y < 0)
+			{
+				reflection_normal.y = 1.0f;
+			}
+			game->player_1.y_velocity -= 1*dot_product(velocity, reflection_normal)*reflection_normal.y;
+		}
+		else
 		{
 			game->player_1.position = new_player_position;
 		}
-		if (old_tile_value == 2 && is_out_of_bounds(new_player_position, current_level))
+
+		int old_tile_value = get_tile_value(current_level, old_player_position);
+		if (old_tile_value == 2 && out_of_bounds)
 		{
 			game->player_1.position = new_player_position;
 			become_prev_level(game);
 		}
-		else if (old_tile_value == 3 && is_out_of_bounds(new_player_position, current_level))
+		else if (old_tile_value == 3 && out_of_bounds)
 		{
 			game->player_1.position = new_player_position;
 			become_next_level(game);

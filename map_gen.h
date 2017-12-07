@@ -61,12 +61,6 @@ struct tile_offset
 	int y;
 };
 
-struct door
-{
-	int x;
-	int y;
-};
-
 struct memory_block
 {
 	void *address;
@@ -85,8 +79,8 @@ struct level
 	int *map;
 	int width;
 	int height;
-	struct door entrance;
-	struct door exit;
+	struct tile_offset entrance;
+	struct tile_offset exit;
 	struct level *prev_level;
 	struct level *next_level;
 	struct tile_offset next_offset;
@@ -108,8 +102,8 @@ struct player
 	int tile_width;
 	int tile_height;
 	struct level_position position;
-	int x_velocity;
-	int y_velocity;
+	float x_velocity;
+	float y_velocity;
 };
 
 struct game_state
