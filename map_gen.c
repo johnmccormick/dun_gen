@@ -641,59 +641,70 @@ void main_game_loop (struct pixel_buffer *buffer, struct memory_block platform_m
 
 		if (game->input_keys[KEY_SHIFT].is_down)
 		{
-			game->base_player_velocity = 300;
+			game->base_player_velocity = 3000;
 		}
 		else if (!game->input_keys[KEY_SHIFT].is_down)
 		{
-			game->base_player_velocity = 150;
+			game->base_player_velocity = 1500;
 		}
 
-		int new_player_velocity_x = 0;
-		int new_player_velocity_y = 0;
+		int new_player_acceleration_x = 0;
+		int new_player_acceleration_y = 0;
 
 		if (game->last_input_key)
 		{
 			if (game->input_keys[KEY_W].is_down || game->input_keys[KEY_UP].is_down)
 			{
-				new_player_velocity_y = -game->base_player_velocity;
+				new_player_acceleration_y = -game->base_player_velocity;
 			}
 			if (game->input_keys[KEY_A].is_down || game->input_keys[KEY_LEFT].is_down)
 			{
-				new_player_velocity_x = -game->base_player_velocity;
+				new_player_acceleration_x = -game->base_player_velocity;
 			}
 			if (game->input_keys[KEY_S].is_down || game->input_keys[KEY_DOWN].is_down)
 			{
-				new_player_velocity_y = game->base_player_velocity;
+				new_player_acceleration_y = game->base_player_velocity;
 			}
 			if (game->input_keys[KEY_D].is_down || game->input_keys[KEY_RIGHT].is_down)
 			{
-				new_player_velocity_x = game->base_player_velocity;
+				new_player_acceleration_x = game->base_player_velocity;
 			}
 		}
 		
-		struct level_position player_position = game->player_1.position;
-		struct level_position new_player_position = game->player_1.position;
+		struct level_position old_player_position = game->player_1.position;
+		float player_position_delta_x = 0.0f;
+		float player_position_delta_y = 0.0f;
 
-		new_player_position.pixel_x += new_player_velocity_x * input.frame_t;
-		new_player_position.pixel_y += new_player_velocity_y * input.frame_t;
+		new_player_acceleration_x += -10*game->player_1.x_velocity;
+		new_player_acceleration_y += -10*game->player_1.y_velocity;
+
+		player_position_delta_x = (1/2*new_player_acceleration_x*(pow(input.frame_t, 2))) + game->player_1.x_velocity*input.frame_t;
+		player_position_delta_y = (1/2*new_player_acceleration_y*(pow(input.frame_t, 2))) + game->player_1.y_velocity*input.frame_t;
+
+		game->player_1.x_velocity = (new_player_acceleration_x * input.frame_t) + game->player_1.x_velocity;
+		game->player_1.y_velocity = (new_player_acceleration_y * input.frame_t) + game->player_1.y_velocity;
+
+		struct level_position new_player_position = old_player_position;
+		new_player_position.pixel_x += player_position_delta_x;
+		new_player_position.pixel_y += player_position_delta_y;
 
 		new_player_position = reoffset_tile_position(game, new_player_position);
 
 		struct level current_level = *game->current_level;
 
-		int tile_value = get_tile_value(current_level, player_position);
+		int old_tile_value = get_tile_value(current_level, old_player_position);
 		int new_tile_value = get_tile_value(current_level, new_player_position);
 
 		if ((new_tile_value) == 1 || (new_tile_value) == 2 || (new_tile_value) == 3)
 		{
 			game->player_1.position = new_player_position;
 		}
-		if (tile_value == 2 && is_out_of_bounds(new_player_position, current_level))
+		if (old_tile_value == 2 && is_out_of_bounds(new_player_position, current_level))
 		{
 			game->player_1.position = new_player_position;
 			become_prev_level(game);
 		}
-		else if (tile_value == 3 && is_out_of_bounds(new_player_position, current_level))
+		else if (old_tile_value == 3 && is_out_of_bounds(new_player_position, current_level))
 		{
 			game->player_1.position = new_player_position;
 			become_next_level(game);
