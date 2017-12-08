@@ -97,13 +97,14 @@ struct level_position
 	float pixel_y;
 };
 
+#include "map_math.h"
+
 struct player
 {
 	int tile_width;
 	int tile_height;
 	struct level_position position;
-	float x_velocity;
-	float y_velocity;
+	struct vector2 velocity;
 };
 
 struct game_state
