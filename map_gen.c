@@ -511,18 +511,18 @@ bool is_collision_tile(struct game_state *game, struct level current_level, int 
 }
 
 // Function works swapping x for y / top and bottom for left and right
-bool test_wall_collision (float x_diff, float delta_x, float top_y, float bottom_y, float position_y, float delta_y, float *t_min)
+bool test_wall_collision (float x_diff, float delta_x, float top_y, float bottom_y, float delta_y, float *t_min)
 {
 	bool result = false;
 
-	float t_epsilon = 0.001f;
+	float t_epsilon = 0.00001f;
 
 	if (delta_x != 0.0f)
 	{
 		float t_result = x_diff / delta_x;
 		if ((t_result >= 0) && (t_result < *t_min))
 		{
-			float y_transform = position_y + (delta_y * t_result); 
+			float y_transform = delta_y * t_result; 
 			if ((y_transform >= top_y) && (y_transform <= bottom_y))
 			{
 				*t_min = (t_result - t_epsilon > 0.0f ? t_result - t_epsilon : 0.0f);
@@ -802,49 +802,42 @@ void main_game_loop (struct pixel_buffer *buffer, struct memory_block platform_m
 					bool out_of_bounds = is_out_of_bounds_tile(current_level, tile_x, tile_y);
 					if (is_collision_tile(game, current_level, tile_x, tile_y) && !out_of_bounds)
 					{
+						int tile_to_player_x = tile_x - game->player_1.position.tile_x;
+						int tile_to_player_y = tile_y - game->player_1.position.tile_y;
+
 						// Add half player diameter to wall borders for Minkowski collision
 						float half_player_width = game->player_1.pixel_width / 2;
 						float half_player_height = game->player_1.pixel_height / 2;
 
-						struct vector2 tile_top_left;
-						tile_top_left.x = (tile_x * game->tile_size) - half_player_width;
-						tile_top_left.y = (tile_y * game->tile_size) - half_player_height;
+						float tile_top_left_x = (tile_to_player_x * game->tile_size) - game->player_1.position.pixel_x - half_player_width;
+						float tile_top_left_y = (tile_to_player_y * game->tile_size) - game->player_1.position.pixel_y - half_player_height;
 
-						struct vector2 tile_bottom_right;
-						tile_bottom_right.x = (tile_x * game->tile_size) + game->tile_size + half_player_width;
-						tile_bottom_right.y = (tile_y * game->tile_size) + game->tile_size + half_player_height;
-
-						struct vector2 player_position;
-						player_position.x = (game->player_1.position.tile_x * game->tile_size) + game->player_1.position.pixel_x;
-						player_position.y = (game->player_1.position.tile_y * game->tile_size) + game->player_1.position.pixel_y;
+						float tile_bottom_right_x = ((tile_to_player_x + 1) * game->tile_size) - game->player_1.position.pixel_x + half_player_width;
+						float tile_bottom_right_y = ((tile_to_player_y + 1) * game->tile_size) - game->player_1.position.pixel_y + half_player_height;
 
 						// Test left wall
-						float left_wall_diff = tile_top_left.x - player_position.x;
-						if (test_wall_collision(left_wall_diff, player_position_delta.x, tile_top_left.y, tile_bottom_right.y, player_position.y, player_position_delta.y, &t_min))
+						if (test_wall_collision(tile_top_left_x, player_position_delta.x, tile_top_left_y, tile_bottom_right_y, player_position_delta.y, &t_min))
 						{
 							reflection_normal.x = -1;
 							reflection_normal.y = 0;
 						}
 
 						// Test right wall
-						float right_wall_diff = tile_bottom_right.x - player_position.x;
-						if (test_wall_collision(right_wall_diff, player_position_delta.x, tile_top_left.y, tile_bottom_right.y, player_position.y, player_position_delta.y, &t_min))
+						if (test_wall_collision(tile_bottom_right_x, player_position_delta.x, tile_top_left_y, tile_bottom_right_y, player_position_delta.y, &t_min))
 						{	
 							reflection_normal.x = 1;
 							reflection_normal.y = 0;
 						}
 
 						// Test top wall
-						float top_wall_diff = tile_top_left.y - player_position.y;
-						if (test_wall_collision(top_wall_diff, player_position_delta.y, tile_top_left.x, tile_bottom_right.x, player_position.x, player_position_delta.x, &t_min))
+						if (test_wall_collision(tile_top_left_y, player_position_delta.y, tile_top_left_x, tile_bottom_right_x, player_position_delta.x, &t_min))
 						{
 							reflection_normal.x = 0;
 							reflection_normal.y = -1;
 						}
 
 						// Test right wall
-						float bottom_wall_diff = tile_bottom_right.y - player_position.y;
-						if (test_wall_collision(bottom_wall_diff, player_position_delta.y, tile_top_left.x, tile_bottom_right.x, player_position.x, player_position_delta.x, &t_min))
+						if (test_wall_collision(tile_bottom_right_y, player_position_delta.y, tile_top_left_x, tile_bottom_right_x, player_position_delta.x, &t_min))
 						{
 							reflection_normal.x = 0;
 							reflection_normal.y = 1;
@@ -853,8 +846,8 @@ void main_game_loop (struct pixel_buffer *buffer, struct memory_block platform_m
 				}
 			}
 
-			game->player_1.position.pixel_x += player_position_delta.x * t_min;
-			game->player_1.position.pixel_y += player_position_delta.y * t_min;
+			game->player_1.position.pixel_x += (player_position_delta.x * t_min);
+			game->player_1.position.pixel_y += (player_position_delta.y * t_min);
 
 			game->player_1.velocity.x -= (1.0f*dot_product(game->player_1.velocity, reflection_normal)*reflection_normal.x);
 			game->player_1.velocity.y -= (1.0f*dot_product(game->player_1.velocity, reflection_normal)*reflection_normal.y);
