@@ -76,6 +76,7 @@ struct memory_arena
 
 struct level
 {
+	uint index;
 	int *map;
 	int width;
 	int height;
@@ -101,8 +102,8 @@ struct level_position
 
 struct player
 {
-	int tile_width;
-	int tile_height;
+	int pixel_width;
+	int pixel_height;
 	struct level_position position;
 	struct vector2 velocity;
 };
@@ -114,6 +115,7 @@ struct game_state
 	struct memory_arena world_memory;
 	
 	int tile_size;
+	uint level_index; 
 
 	struct level *current_level;
 	struct player player_1;

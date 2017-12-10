@@ -8,9 +8,16 @@
 
 #include "map_gen.c"
 
-float SDL_get_seconds_difference(uint counter_1, uint counter_2)
+void set_screen_size(SDL_Window *window, struct pixel_buffer *main_buffer, int screen_mode, int max_ratio)
 {
-    return ((float)(counter_2 - counter_1) / (float)(SDL_GetPerformanceFrequency()));
+    if (screen_mode == 0)
+        SDL_SetWindowFullscreen(window, SDL_WINDOW_FULLSCREEN_DESKTOP);
+    if (screen_mode > 0)
+    {
+        SDL_SetWindowFullscreen(window, 0);
+        SDL_SetWindowSize(window, main_buffer->client_width * screen_mode, main_buffer->client_height * screen_mode);
+        SDL_SetWindowPosition(window, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED);
+    }
 }
 
 int main () 
@@ -21,8 +28,8 @@ int main ()
         "Map Generator",
         SDL_WINDOWPOS_UNDEFINED,
         SDL_WINDOWPOS_UNDEFINED,
-        800, 600,
-        SDL_WINDOW_SHOWN
+        350, 200,
+        SDL_WINDOW_RESIZABLE
     );
 
     if (window == NULL) {
@@ -87,6 +94,15 @@ int main ()
 
     SDL_DisplayMode mode;
     SDL_GetDesktopDisplayMode(0, &mode);
+
+    // 1:1 pixel ratio
+    int max_ratio = mode.w / main_buffer->client_width;
+    int h_ratio = mode.h / main_buffer->client_height;
+    max_ratio = h_ratio < max_ratio ? h_ratio : max_ratio;
+
+    int screen_mode = max_ratio;
+    set_screen_size(window, main_buffer, screen_mode, max_ratio);
+
     int target_fps = mode.refresh_rate;
 
     float target_spf = 1.0f / (float)target_fps;
@@ -163,6 +179,18 @@ int main ()
                         case SDLK_LSHIFT:
                         {
                             main_input_events.keyboard_press_shift = true;
+                        } break;
+
+                        case SDLK_RETURN:
+                        {   
+                            screen_mode = screen_mode < max_ratio ? ++screen_mode : 0;
+                            set_screen_size(window, main_buffer, screen_mode, max_ratio);
+                        } break;
+
+                        case SDLK_BACKSPACE:
+                        {   
+                            screen_mode = screen_mode >= 0 ? --screen_mode : max_ratio;
+                            set_screen_size(window, main_buffer, screen_mode, max_ratio);
                         } break;
                     }
                 } break;
