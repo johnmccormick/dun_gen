@@ -39,8 +39,8 @@ uint32_t get_tile_colour (int tile_value, float level_render_gradient, uint32_t 
 void render_game(struct pixel_buffer *buffer, struct game_state *game)
 {
 	// Converts player map coordinate to centered position in terms of pixels
-	int player_1_x = (game->player_1.position.tile_x * game->tile_size) + game->player_1.position.pixel_x;
-	int player_1_y = (game->player_1.position.tile_y * game->tile_size) + game->player_1.position.pixel_y;
+	int player_1_x = round((game->player_1.position.tile_x * game->tile_size) + game->player_1.position.pixel_x);
+	int player_1_y = round((game->player_1.position.tile_y * game->tile_size) + game->player_1.position.pixel_y);
 
 	int levels_to_render = 1;
 	int levels_rendered = 0;
@@ -182,10 +182,10 @@ void render_game(struct pixel_buffer *buffer, struct game_state *game)
 	player_pointer += (((buffer->client_height / 2) - (game->player_1.pixel_height / 2)) * buffer->texture_pitch)
 					+ (((buffer->client_width / 2) - (game->player_1.pixel_width / 2)) * buffer->bytes_per_pixel);
 
-	for (int y = 0; y <= game->player_1.pixel_height; ++y)
+	for (int y = 0; y < game->player_1.pixel_height; ++y)
 	{
 		uint32_t *pixel = (uint32_t *)player_pointer;
-		for (int x = 0; x <= game->player_1.pixel_width; ++x)
+		for (int x = 0; x < game->player_1.pixel_width; ++x)
 		{
 			*pixel++ = 0x000000ff;
 		}
@@ -515,11 +515,11 @@ bool test_wall_collision (float x_diff, float delta_x, float top_y, float bottom
 {
 	bool result = false;
 
-	float t_epsilon = 0.0001f;
+	float t_epsilon = 0.001f;
 
 	if (delta_x != 0.0f)
 	{
-		float t_result = x_diff / -delta_x;
+		float t_result = x_diff / delta_x;
 		if ((t_result >= 0) && (t_result < *t_min))
 		{
 			float y_transform = position_y + (delta_y * t_result); 
@@ -657,11 +657,11 @@ void main_game_loop (struct pixel_buffer *buffer, struct memory_block platform_m
 		// Setup memory arena
 		initialise_memory_arena(&game->world_memory, (uint8_t *)platform_memory.address + sizeof(struct game_state), platform_memory.storage_size - (sizeof(struct game_state)));
 
-		int input_key_count = 9;
+		game->input_key_count = 9;
 
-		game->input_keys = push_struct(&game->world_memory, sizeof(struct input_key) * input_key_count);
+		game->input_keys = push_struct(&game->world_memory, sizeof(struct input_key) * game->input_key_count);
 
-		setup_input_keys(game, input_key_count);
+		setup_input_keys(game, game->input_key_count);
 
 	    game->last_input_key = NULL;
 
@@ -703,21 +703,21 @@ void main_game_loop (struct pixel_buffer *buffer, struct memory_block platform_m
 		game->paused = !game->paused;
 	}
 
+	process_input(game, input);
+
 	if (!game->paused)
 	{
-		process_input(game, input);
-
 		if (game->input_keys[KEY_SHIFT].is_down)
 		{
 			// TODO: If tile size is going to be
 			// at all variable, values like this
 			// need to be normalised by a pixel
 			// to game distance ratio.
-			game->base_player_velocity = 1500;
+			game->base_player_velocity = 1000;
 		}
 		else if (!game->input_keys[KEY_SHIFT].is_down)
 		{
-			game->base_player_velocity = 1000;
+			game->base_player_velocity = 700;
 		}
 
 		int new_player_acceleration_x = 0;
@@ -747,8 +747,8 @@ void main_game_loop (struct pixel_buffer *buffer, struct memory_block platform_m
 		struct vector2 player_position_delta = {0, 0};
 
 		// Friction
-		new_player_acceleration_x += -10*game->player_1.velocity.x;
-		new_player_acceleration_y += -10*game->player_1.velocity.y;
+		new_player_acceleration_x += -12*game->player_1.velocity.x;
+		new_player_acceleration_y += -12*game->player_1.velocity.y;
 
 		// p = at^2 + vt + p
 		player_position_delta.x = (1/2*new_player_acceleration_x*(pow(input.frame_t, 2))) + game->player_1.velocity.x*input.frame_t;
@@ -762,8 +762,6 @@ void main_game_loop (struct pixel_buffer *buffer, struct memory_block platform_m
 		struct level_position new_player_position = old_player_position;
 		new_player_position.pixel_x += player_position_delta.x;
 		new_player_position.pixel_y += player_position_delta.y;
-		new_player_position = reoffset_tile_position(game, new_player_position);
-
 
 		struct level current_level = *game->current_level;
 
@@ -821,7 +819,7 @@ void main_game_loop (struct pixel_buffer *buffer, struct memory_block platform_m
 						player_position.y = (game->player_1.position.tile_y * game->tile_size) + game->player_1.position.pixel_y;
 
 						// Test left wall
-						float left_wall_diff = player_position.x - tile_top_left.x;
+						float left_wall_diff = tile_top_left.x - player_position.x;
 						if (test_wall_collision(left_wall_diff, player_position_delta.x, tile_top_left.y, tile_bottom_right.y, player_position.y, player_position_delta.y, &t_min))
 						{
 							reflection_normal.x = -1;
@@ -829,7 +827,7 @@ void main_game_loop (struct pixel_buffer *buffer, struct memory_block platform_m
 						}
 
 						// Test right wall
-						float right_wall_diff = player_position.x - tile_bottom_right.x;
+						float right_wall_diff = tile_bottom_right.x - player_position.x;
 						if (test_wall_collision(right_wall_diff, player_position_delta.x, tile_top_left.y, tile_bottom_right.y, player_position.y, player_position_delta.y, &t_min))
 						{	
 							reflection_normal.x = 1;
@@ -837,7 +835,7 @@ void main_game_loop (struct pixel_buffer *buffer, struct memory_block platform_m
 						}
 
 						// Test top wall
-						float top_wall_diff = player_position.y - tile_top_left.y;
+						float top_wall_diff = tile_top_left.y - player_position.y;
 						if (test_wall_collision(top_wall_diff, player_position_delta.y, tile_top_left.x, tile_bottom_right.x, player_position.x, player_position_delta.x, &t_min))
 						{
 							reflection_normal.x = 0;
@@ -845,7 +843,7 @@ void main_game_loop (struct pixel_buffer *buffer, struct memory_block platform_m
 						}
 
 						// Test right wall
-						float bottom_wall_diff = player_position.y - tile_bottom_right.y;
+						float bottom_wall_diff = tile_bottom_right.y - player_position.y;
 						if (test_wall_collision(bottom_wall_diff, player_position_delta.y, tile_top_left.x, tile_bottom_right.x, player_position.x, player_position_delta.x, &t_min))
 						{
 							reflection_normal.x = 0;
@@ -861,10 +859,10 @@ void main_game_loop (struct pixel_buffer *buffer, struct memory_block platform_m
 			game->player_1.velocity.x -= (1.0f*dot_product(game->player_1.velocity, reflection_normal)*reflection_normal.x);
 			game->player_1.velocity.y -= (1.0f*dot_product(game->player_1.velocity, reflection_normal)*reflection_normal.y);
 
-			t_remaining -= t_remaining * t_min;
-
 			player_position_delta.x -= (1.0f*dot_product(player_position_delta, reflection_normal)*reflection_normal.x);
 			player_position_delta.y -= (1.0f*dot_product(player_position_delta, reflection_normal)*reflection_normal.y);
+
+			t_remaining -= t_remaining * t_min;
 
 			player_position_delta.x *= t_remaining;
 			player_position_delta.y *= t_remaining;

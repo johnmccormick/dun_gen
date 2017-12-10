@@ -127,6 +127,7 @@ struct game_state
 	int next_render_depth;
 	int prev_render_depth;
 
+	int input_key_count;
 	struct input_key *input_keys;
 	struct input_key *last_input_key;
 
