@@ -98,7 +98,7 @@ struct level_position
 	float pixel_y;
 };
 
-#include "map_math.h"
+#include "dun_gen_math.h"
 
 struct player
 {

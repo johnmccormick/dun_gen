@@ -1,4 +1,4 @@
-#include "map_gen.h"
+#include "dun_gen.h"
 
 uint32_t create_colour(float a, uint8_t r, uint8_t g, uint8_t b, uint32_t *pixel)
 {

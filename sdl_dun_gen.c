@@ -1,12 +1,14 @@
 #include <stdint.h>
 #include <stdlib.h>
-#include <sys/types.h>
 #include <time.h>
-#include <sys/mman.h>
-#include <SDL2/SDL.h>
 #include <math.h>
 
-#include "map_gen.c"
+#include <sys/types.h>
+#include <sys/mman.h>
+
+#include <SDL2/SDL.h>
+
+#include "dun_gen.c"
 
 void set_screen_size(SDL_Window *window, struct pixel_buffer *main_buffer, int screen_mode, int max_ratio)
 {
