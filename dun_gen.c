@@ -38,7 +38,7 @@ uint32_t get_tile_colour (int tile_value, float level_render_gradient, uint32_t 
 
 struct tile_offset calculate_next_offsets (struct level current_level)
 {
-	struct tile_offset level_offset; 
+	struct tile_offset level_offset = {0, 0}; 
 
 	if (current_level.exit.x == current_level.width - 1)
 	{
@@ -59,11 +59,6 @@ struct tile_offset calculate_next_offsets (struct level current_level)
 	{
 		level_offset.x = current_level.exit.x - current_level.next_level->entrance.x;
 		level_offset.y = -current_level.next_level->height;
-	}
-	else
-	{
-		level_offset.x = 0;
-		level_offset.y = 0;
 	}
 
 	return level_offset;
@@ -321,119 +316,6 @@ bool test_wall_collision (float x_diff, float delta_x, float top_y, float bottom
 	return result;
 }
 
-void setup_input_keys(struct game_state *game, int key_count)
-{
-	// Keycode definitions in map_gen.h
-	struct input_key temp_input_key;
-	for (int i = 0; i < key_count; ++i)
-	{
-	    temp_input_key.is_down = false;
-	    game->input_keys[i] = temp_input_key;
-	}
-}
-
-void process_button_press(struct game_state *game, int BUTTON_X)
-{
-	game->input_keys[BUTTON_X].is_down = true;
-	game->input_keys[BUTTON_X].prev_key = game->last_input_key;
-	game->input_keys[BUTTON_X].next_key = NULL;
-	if (game->last_input_key)
-		game->last_input_key->next_key = &game->input_keys[BUTTON_X];
-	game->last_input_key = &game->input_keys[BUTTON_X];
-}
-
-void process_button_release(struct game_state *game, int BUTTON_X)
-{
-	game->input_keys[BUTTON_X].is_down = false;
-	if (game->input_keys[BUTTON_X].next_key != NULL)
-	{
-		game->input_keys[BUTTON_X].next_key->prev_key = game->input_keys[BUTTON_X].prev_key;
-	}
-	if (game->input_keys[BUTTON_X].prev_key != NULL)
-	{
-		game->input_keys[BUTTON_X].prev_key->next_key = game->input_keys[BUTTON_X].next_key;
-	}
-	if (game->last_input_key == &game->input_keys[BUTTON_X])
-		game->last_input_key = game->input_keys[BUTTON_X].prev_key;
-	game->input_keys[BUTTON_X].prev_key = NULL;
-}
-
-void process_buttons(struct game_state *game, struct button_events buttons)
-{
-	if (buttons.keyboard_press_w && !game->input_keys[KEY_W].is_down)
-	{
-		process_button_press(game, KEY_W);
-	}
-	if (buttons.keyboard_release_w && game->input_keys[KEY_W].is_down)
-	{
-		process_button_release(game, KEY_W);
-	}
-	if (buttons.keyboard_press_a && !game->input_keys[KEY_A].is_down)
-	{
-		process_button_press(game, KEY_A);
-	}
-	if (buttons.keyboard_release_a && game->input_keys[KEY_A].is_down)
-	{
-		process_button_release(game, KEY_A);
-	}
-	if (buttons.keyboard_press_s && !game->input_keys[KEY_S].is_down)
-	{
-		process_button_press(game, KEY_S);
-	}
-	if (buttons.keyboard_release_s && game->input_keys[KEY_S].is_down)
-	{
-		process_button_release(game, KEY_S);
-	}
-	if (buttons.keyboard_press_d && !game->input_keys[KEY_D].is_down)
-	{
-		process_button_press(game, KEY_D);
-	}
-	if (buttons.keyboard_release_d && game->input_keys[KEY_D].is_down)
-	{
-		process_button_release(game, KEY_D);
-	}
-	if (buttons.keyboard_press_up && !game->input_keys[KEY_UP].is_down)
-	{
-		process_button_press(game, KEY_UP);
-	}
-	if (buttons.keyboard_release_up && game->input_keys[KEY_UP].is_down)
-	{
-		process_button_release(game, KEY_UP);
-	}
-	if (buttons.keyboard_press_left && !game->input_keys[KEY_LEFT].is_down)
-	{
-		process_button_press(game, KEY_LEFT);
-	}
-	if (buttons.keyboard_release_left && game->input_keys[KEY_LEFT].is_down)
-	{
-		process_button_release(game, KEY_LEFT);
-	}
-	if (buttons.keyboard_press_down && !game->input_keys[KEY_DOWN].is_down)
-	{
-		process_button_press(game, KEY_DOWN);
-	}
-	if (buttons.keyboard_release_down && game->input_keys[KEY_DOWN].is_down)
-	{
-		process_button_release(game, KEY_DOWN);
-	}
-	if (buttons.keyboard_press_right && !game->input_keys[KEY_RIGHT].is_down)
-	{
-		process_button_press(game, KEY_RIGHT);
-	}
-	if (buttons.keyboard_release_right && game->input_keys[KEY_RIGHT].is_down)
-	{
-		process_button_release(game, KEY_RIGHT);
-	}
-	if (buttons.keyboard_press_shift && !game->input_keys[KEY_SHIFT].is_down)
-	{
-		game->input_keys[KEY_SHIFT].is_down = true;
-	}
-	if (buttons.keyboard_release_shift && game->input_keys[KEY_SHIFT].is_down)
-	{
-		game->input_keys[KEY_SHIFT].is_down = false;
-	}
-}
-
 int create_entity(struct game_state *game, struct memory_arena *world_memory, struct level *target_level, enum entity_type type, struct level_position position, int width, int height)
 {
 	//struct entity_node *new_entity_node = push_struct(world_memory, sizeof(struct entity_node));
@@ -529,20 +411,14 @@ void become_prev_level(struct game_state *game, int player_index)
 }
 
 
-void main_game_loop (struct pixel_buffer *buffer, struct memory_block platform_memory, struct input_events input)
+void main_game_loop (struct pixel_buffer *buffer, struct platform_memory memory, struct input_events input)
 {
-	struct game_state *game = platform_memory.address;
+	struct game_state *game = memory.address;
 
 	if (!game->initialised)
 	{	
 		// Setup memory arena
-		initialise_memory_arena(&game->world_memory, (uint8_t *)platform_memory.address + sizeof(struct game_state), platform_memory.storage_size - (sizeof(struct game_state)));
-
-		game->input_keys = push_struct(&game->world_memory, sizeof(struct input_key) * BUTTON_COUNT);
-
-		setup_input_keys(game, BUTTON_COUNT);
-
-	    game->last_input_key = NULL;
+		initialise_memory_arena(&game->world_memory, (uint8_t *)memory.address + sizeof(struct game_state), memory.storage_size - (sizeof(struct game_state)));
 
 	    // Create initial level
 		game->current_level = generate_level(&game->world_memory, NULL);
@@ -570,16 +446,14 @@ void main_game_loop (struct pixel_buffer *buffer, struct memory_block platform_m
 		game->initialised = true;
 	}
 
-	if (input.buttons.keyboard_press_space)
+	if (input.buttons.keyboard_space)
 	{
 		game->paused = !game->paused;
 	}
 
-	process_buttons(game, input.buttons);
-
 	if (!game->paused)
 	{
-		if (game->input_keys[KEY_SHIFT].is_down)
+		if (input.buttons.keyboard_shift)
 		{
 			// TODO: If tile size is going to be
 			// at all variable, values like this
@@ -587,7 +461,7 @@ void main_game_loop (struct pixel_buffer *buffer, struct memory_block platform_m
 			// to game distance ratio.
 			game->base_player_velocity = 1000;
 		}
-		else if (!game->input_keys[KEY_SHIFT].is_down)
+		else if (!input.buttons.keyboard_shift)
 		{
 			game->base_player_velocity = 700;
 		}
@@ -595,24 +469,21 @@ void main_game_loop (struct pixel_buffer *buffer, struct memory_block platform_m
 		int new_player_acceleration_x = 0;
 		int new_player_acceleration_y = 0;
 
-		if (game->last_input_key)
+		if (input.buttons.keyboard_w || input.buttons.keyboard_up)
 		{
-			if (game->input_keys[KEY_W].is_down || game->input_keys[KEY_UP].is_down)
-			{
-				new_player_acceleration_y = -game->base_player_velocity;
-			}
-			if (game->input_keys[KEY_A].is_down || game->input_keys[KEY_LEFT].is_down)
-			{
-				new_player_acceleration_x = -game->base_player_velocity;
-			}
-			if (game->input_keys[KEY_S].is_down || game->input_keys[KEY_DOWN].is_down)
-			{
-				new_player_acceleration_y = game->base_player_velocity;
-			}
-			if (game->input_keys[KEY_D].is_down || game->input_keys[KEY_RIGHT].is_down)
-			{
-				new_player_acceleration_x = game->base_player_velocity;
-			}
+			new_player_acceleration_y = -game->base_player_velocity;
+		}
+		if (input.buttons.keyboard_a || input.buttons.keyboard_left)
+		{
+			new_player_acceleration_x = -game->base_player_velocity;
+		}
+		if (input.buttons.keyboard_s || input.buttons.keyboard_down)
+		{
+			new_player_acceleration_y = game->base_player_velocity;
+		}
+		if (input.buttons.keyboard_d || input.buttons.keyboard_right)
+		{
+			new_player_acceleration_x = game->base_player_velocity;
 		}
 
 		struct entity *player[MAX_PLAYERS];

@@ -79,40 +79,12 @@ int main ()
 
     main_buffer->pixels = malloc(main_buffer->client_width * main_buffer->client_height * main_buffer->bytes_per_pixel);
 
-    struct memory_block platform_memory;
+    struct platform_memory game_memory;
     // 64mb should be good for around 2.5 million levels
     // with max level width/height set to 16/9.
-    platform_memory.storage_size = (1024 * 1024 * 64);
-    platform_memory.address = malloc(platform_memory.storage_size);
-    memset(platform_memory.address, 0, platform_memory.storage_size);
-
-    struct input_events sdl_input;
-    struct button_events sdl_buttons, reset_buttons;
-    reset_buttons.keyboard_press_w = false;
-    reset_buttons.keyboard_release_w = false;
-    reset_buttons.keyboard_press_s = false;
-    reset_buttons.keyboard_release_s = false;
-    reset_buttons.keyboard_press_a = false;
-    reset_buttons.keyboard_release_a = false;
-    reset_buttons.keyboard_press_d = false;
-    reset_buttons.keyboard_release_d = false;
-    reset_buttons.keyboard_press_up = false;
-    reset_buttons.keyboard_release_up = false;
-    reset_buttons.keyboard_press_down = false;
-    reset_buttons.keyboard_release_down = false;
-    reset_buttons.keyboard_press_left = false;
-    reset_buttons.keyboard_release_left = false;
-    reset_buttons.keyboard_press_right = false;
-    reset_buttons.keyboard_release_right = false;
-    reset_buttons.keyboard_press_space = false;
-    reset_buttons.keyboard_release_shift = false;
-    reset_buttons.keyboard_press_shift = false;
-    reset_buttons.mouse_press_left = false;
-    reset_buttons.mouse_release_left = false;
-    reset_buttons.mouse_press_right = false;
-    reset_buttons.mouse_release_right = false;
-    sdl_input.mouse_x = 0;
-    sdl_input.mouse_y = 0;
+    game_memory.storage_size = (1024 * 1024 * 64);
+    game_memory.address = malloc(game_memory.storage_size);
+    memset(game_memory.address, 0, game_memory.storage_size);
 
     // 1:1 pixel ratio
     int max_ratio = mode.w / main_buffer->client_width;
@@ -121,6 +93,13 @@ int main ()
 
     int render_ratio = (max_ratio == 4 ? 3 : max_ratio);
     set_screen_size(window, main_buffer, render_ratio, max_ratio);
+
+    // Static structs are initialized to zero
+    static struct button_events _buttons;
+    struct input_events sdl_input;
+    sdl_input.buttons = _buttons;
+    sdl_input.mouse_x = 0;
+    sdl_input.mouse_y = 0;
 
     int target_fps = mode.refresh_rate;
 
@@ -135,7 +114,6 @@ int main ()
     bool quit = false;
     while(!quit)
     {
-        sdl_buttons = reset_buttons;
         SDL_Event event;
         while(SDL_PollEvent(&event))
         {
@@ -158,52 +136,52 @@ int main ()
                     {
                         case SDLK_SPACE:
                         {
-                            sdl_buttons.keyboard_press_space = true;
+                            sdl_input.buttons.keyboard_space = true;
                         } break;
 
                         case SDLK_w:
                         {
-                            sdl_buttons.keyboard_press_w = true;
+                            sdl_input.buttons.keyboard_w = true;
                         } break;
 
                         case SDLK_a:
                         {
-                            sdl_buttons.keyboard_press_a = true;
+                            sdl_input.buttons.keyboard_a = true;
                         } break;
 
                         case SDLK_s:
                         {
-                            sdl_buttons.keyboard_press_s = true;
+                            sdl_input.buttons.keyboard_s = true;
                         } break;
 
                         case SDLK_d:
                         {
-                            sdl_buttons.keyboard_press_d = true;
+                            sdl_input.buttons.keyboard_d = true;
                         } break;
 
                         case SDLK_UP:
                         {
-                            sdl_buttons.keyboard_press_up = true;
+                            sdl_input.buttons.keyboard_up = true;
                         } break;
 
                         case SDLK_LEFT:
                         {
-                            sdl_buttons.keyboard_press_left = true;
+                            sdl_input.buttons.keyboard_left = true;
                         } break;
 
                         case SDLK_DOWN:
                         {
-                            sdl_buttons.keyboard_press_down = true;
+                            sdl_input.buttons.keyboard_down = true;
                         } break;
 
                         case SDLK_RIGHT:
                         {
-                            sdl_buttons.keyboard_press_right = true;
+                            sdl_input.buttons.keyboard_right = true;
                         } break;
 
                         case SDLK_LSHIFT:
                         {
-                            sdl_buttons.keyboard_press_shift = true;
+                            sdl_input.buttons.keyboard_shift = true;
                         } break;
 
                         case SDLK_RETURN:
@@ -226,56 +204,54 @@ int main ()
                     {
                         case SDLK_w:
                         {
-                            sdl_buttons.keyboard_release_w = true;
+                            sdl_input.buttons.keyboard_w = false;
                         } break;
 
                         case SDLK_a:
                         {
-                            sdl_buttons.keyboard_release_a = true;
+                            sdl_input.buttons.keyboard_a = false;
                         } break;
 
                         case SDLK_s:
                         {
-                            sdl_buttons.keyboard_release_s = true;
+                            sdl_input.buttons.keyboard_s = false;
                         } break;
 
                         case SDLK_d:
                         {
-                            sdl_buttons.keyboard_release_d = true;
+                            sdl_input.buttons.keyboard_d = false;
                         } break;
 
                         case SDLK_UP:
                         {
-                            sdl_buttons.keyboard_release_up = true;
+                            sdl_input.buttons.keyboard_up = false;
                         } break;
 
                         case SDLK_LEFT:
                         {
-                            sdl_buttons.keyboard_release_left = true;
+                            sdl_input.buttons.keyboard_left = false;
                         } break;
 
                         case SDLK_DOWN:
                         {
-                            sdl_buttons.keyboard_release_down = true;
+                            sdl_input.buttons.keyboard_down = false;
                         } break;
 
                         case SDLK_RIGHT:
                         {
-                            sdl_buttons.keyboard_release_right = true;
+                            sdl_input.buttons.keyboard_right = false;
                         } break;
 
                         case SDLK_LSHIFT:
                         {
-                            sdl_buttons.keyboard_release_shift = true;
+                            sdl_input.buttons.keyboard_shift = false;
                         } break;
                     }
                 } break;
             }
         }
 
-        sdl_input.buttons = sdl_buttons;
-        
-        main_game_loop(main_buffer, platform_memory, sdl_input);
+        main_game_loop(main_buffer, game_memory, sdl_input);
 
         // Now apply pixel buffer to texture
         if(SDL_UpdateTexture(texture,
@@ -306,11 +282,10 @@ int main ()
         last_counter = SDL_GetPerformanceCounter();
 
         SDL_RenderPresent(renderer);
-
     }
 
     // free(main_buffer);
-    // free(platform_memory.address);
+    // free(game_memory.address);
 
     SDL_Quit();
 

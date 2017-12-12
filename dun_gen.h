@@ -3,96 +3,13 @@
 #include <string.h>
 #include <sys/time.h>
 
-
-struct button_events
-{
-	bool keyboard_press_w;
-    bool keyboard_release_w;
-
-    bool keyboard_press_s;
-    bool keyboard_release_s;
-
-    bool keyboard_press_a;
-    bool keyboard_release_a;
-
-    bool keyboard_press_d;
-    bool keyboard_release_d;
-
-    bool keyboard_press_up;
-    bool keyboard_release_up;
-
-    bool keyboard_press_down;
-    bool keyboard_release_down;
-
-    bool keyboard_press_left;
-    bool keyboard_release_left;
-
-    bool keyboard_press_right;
-    bool keyboard_release_right;
-
-    bool keyboard_press_shift;
-    bool keyboard_release_shift;
-
-    bool keyboard_press_space;
-
-    bool mouse_press_left;
-    bool mouse_release_left;
-
-    bool mouse_press_right;
-    bool mouse_release_right;
-};
-
-
-#define KEY_W 0
-#define KEY_A 1
-#define KEY_S 2
-#define KEY_D 3
-#define KEY_UP 4
-#define KEY_DOWN 5
-#define KEY_LEFT 6
-#define KEY_RIGHT 7
-#define KEY_SHIFT 8
-#define KEY_SPACE 9
-#define MOUSE_LEFT 10
-#define MOUSE_RIGHT 11
-#define BUTTON_COUNT 12
-
-struct input_events
-{
-	int mouse_x;
-    int mouse_y;
-
-    struct button_events buttons;
-
-    float frame_t;
-};
-
-struct input_key
-{
-	bool is_down;
-	struct input_key *prev_key;
-	struct input_key *next_key;
-};
-
-struct pixel_buffer
-{
-    void *pixels;
-    int client_width;
-    int client_height;
-    int bytes_per_pixel;
-    int texture_pitch;
-};
+#include "dun_gen_platform.h"
+#include "dun_gen_math.h"
 
 struct tile_offset
 {
 	int x;
 	int y;
-};
-
-struct memory_block
-{
-	void *address;
-	uint storage_size;
 };
 
 struct memory_arena
@@ -117,8 +34,6 @@ enum entity_type
 	entity_enemy,
 	entity_block,
 };
-
-#include "dun_gen_math.h"
 
 struct entity
 {
@@ -186,10 +101,6 @@ struct game_state
 
 	int next_render_depth;
 	int prev_render_depth;
-
-	int input_key_count;
-	struct input_key *input_keys;
-	struct input_key *last_input_key;
 
 	bool paused;
 };
