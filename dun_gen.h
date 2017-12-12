@@ -1,10 +1,9 @@
 #include <stdbool.h>
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 #include <sys/time.h>
 
-struct input_events
+struct button_events
 {
 	bool keyboard_press_w;
     bool keyboard_release_w;
@@ -14,6 +13,7 @@ struct input_events
     bool keyboard_release_a;
     bool keyboard_press_d;
     bool keyboard_release_d;
+
     bool keyboard_press_up;
     bool keyboard_release_up;
     bool keyboard_press_down;
@@ -22,9 +22,24 @@ struct input_events
     bool keyboard_release_left;
     bool keyboard_press_right;
     bool keyboard_release_right;
-    bool keyboard_press_space;
+
     bool keyboard_press_shift;
     bool keyboard_release_shift;
+
+    bool keyboard_press_space;
+
+    bool mouse_press_left;
+    bool mouse_release_left;
+    bool mouse_press_right;
+    bool mouse_release_right;
+};
+
+struct input_events
+{
+	int mouse_x;
+    int mouse_y;
+
+    struct button_events buttons;
 
     float frame_t;
 };
@@ -100,8 +115,16 @@ struct level_position
 
 #include "dun_gen_math.h"
 
-struct player
+enum entity_type
 {
+	entity_player,
+	entity_enemy,
+	entity_block,
+};
+
+struct entity
+{
+	enum entity_type type;
 	int pixel_width;
 	int pixel_height;
 	struct level_position position;
@@ -118,7 +141,7 @@ struct game_state
 	uint level_index; 
 
 	struct level *current_level;
-	struct player player_1;
+	struct entity player_1;
 
 	int base_player_velocity;
 

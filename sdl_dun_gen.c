@@ -1,37 +1,53 @@
 #include <stdint.h>
 #include <stdlib.h>
-#include <time.h>
-#include <math.h>
-
 #include <sys/types.h>
+#include <time.h>
 #include <sys/mman.h>
-
 #include <SDL2/SDL.h>
+#include <math.h>
 
 #include "dun_gen.c"
 
-void set_screen_size(SDL_Window *window, struct pixel_buffer *main_buffer, int screen_mode, int max_ratio)
+void set_screen_size(SDL_Window *window, struct pixel_buffer *main_buffer, int render_ratio, int max_ratio)
 {
-    if (screen_mode == 0)
-        SDL_SetWindowFullscreen(window, SDL_WINDOW_FULLSCREEN_DESKTOP);
-    if (screen_mode > 0)
+    if (render_ratio > 0)
     {
         SDL_SetWindowFullscreen(window, 0);
-        SDL_SetWindowSize(window, main_buffer->client_width * screen_mode, main_buffer->client_height * screen_mode);
+        SDL_SetWindowSize(window, main_buffer->client_width * render_ratio, main_buffer->client_height * render_ratio);
         SDL_SetWindowPosition(window, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED);
     }
+    if (render_ratio == 4)
+        SDL_SetWindowFullscreen(window, SDL_WINDOW_FULLSCREEN_DESKTOP);
 }
 
 int main () 
 {
     SDL_Init(SDL_INIT_VIDEO);
 
+    SDL_DisplayMode mode;
+    SDL_GetDesktopDisplayMode(0, &mode);
+
+    // Very temporary support for variable monitor sizes.
+    // Far more comprehensive support / options will be
+    // needed further down the line.
+    int win_width, win_height;
+    if (mode.w <= 1920 && mode.w >= 1280 && mode.h <= 1080 && mode.h >= 800)
+    {
+        win_width = mode.w / 4;
+        win_height = mode.h / 4;
+    }
+    else
+    {
+        win_width = 450;
+        win_height = 450;
+    }
+
     SDL_Window *window = SDL_CreateWindow(
         "Map Generator",
         SDL_WINDOWPOS_UNDEFINED,
         SDL_WINDOWPOS_UNDEFINED,
-        350, 200,
-        SDL_WINDOW_RESIZABLE
+        win_width, win_height,
+        SDL_WINDOW_SHOWN
     );
 
     if (window == NULL) {
@@ -47,9 +63,6 @@ int main ()
         printf("Could not create renderer: %s\n", SDL_GetError());
         SDL_Quit();
     }
-
-    int win_width, win_height;
-    SDL_GetWindowSize(window, &win_width, &win_height);
 
     SDL_Texture *texture = SDL_CreateTexture(renderer, 
         SDL_PIXELFORMAT_ARGB8888, 
@@ -73,42 +86,46 @@ int main ()
     platform_memory.address = malloc(platform_memory.storage_size);
     memset(platform_memory.address, 0, platform_memory.storage_size);
 
-    struct input_events main_input_events, zero_input_events;
-    zero_input_events.keyboard_press_w = false;
-    zero_input_events.keyboard_release_w = false;
-    zero_input_events.keyboard_press_s = false;
-    zero_input_events.keyboard_release_s = false;
-    zero_input_events.keyboard_press_a = false;
-    zero_input_events.keyboard_release_a = false;
-    zero_input_events.keyboard_press_d = false;
-    zero_input_events.keyboard_release_d = false;
-    zero_input_events.keyboard_press_up = false;
-    zero_input_events.keyboard_release_up = false;
-    zero_input_events.keyboard_press_down = false;
-    zero_input_events.keyboard_release_down = false;
-    zero_input_events.keyboard_press_left = false;
-    zero_input_events.keyboard_release_left = false;
-    zero_input_events.keyboard_press_right = false;
-    zero_input_events.keyboard_release_right = false;
-    zero_input_events.keyboard_press_space = false;
-    zero_input_events.keyboard_release_shift = false;
-    zero_input_events.keyboard_press_shift = false;
-
-    SDL_DisplayMode mode;
-    SDL_GetDesktopDisplayMode(0, &mode);
+    struct input_events sdl_input;
+    struct button_events sdl_buttons, reset_buttons;
+    reset_buttons.keyboard_press_w = false;
+    reset_buttons.keyboard_release_w = false;
+    reset_buttons.keyboard_press_s = false;
+    reset_buttons.keyboard_release_s = false;
+    reset_buttons.keyboard_press_a = false;
+    reset_buttons.keyboard_release_a = false;
+    reset_buttons.keyboard_press_d = false;
+    reset_buttons.keyboard_release_d = false;
+    reset_buttons.keyboard_press_up = false;
+    reset_buttons.keyboard_release_up = false;
+    reset_buttons.keyboard_press_down = false;
+    reset_buttons.keyboard_release_down = false;
+    reset_buttons.keyboard_press_left = false;
+    reset_buttons.keyboard_release_left = false;
+    reset_buttons.keyboard_press_right = false;
+    reset_buttons.keyboard_release_right = false;
+    reset_buttons.keyboard_press_space = false;
+    reset_buttons.keyboard_release_shift = false;
+    reset_buttons.keyboard_press_shift = false;
+    reset_buttons.mouse_press_left = false;
+    reset_buttons.mouse_release_left = false;
+    reset_buttons.mouse_press_right = false;
+    reset_buttons.mouse_release_right = false;
+    sdl_input.mouse_x = 0;
+    sdl_input.mouse_y = 0;
 
     // 1:1 pixel ratio
     int max_ratio = mode.w / main_buffer->client_width;
     int h_ratio = mode.h / main_buffer->client_height;
     max_ratio = h_ratio < max_ratio ? h_ratio : max_ratio;
 
-    int screen_mode = max_ratio;
-    set_screen_size(window, main_buffer, screen_mode, max_ratio);
+    int render_ratio = (max_ratio == 4 ? 3 : max_ratio);
+    set_screen_size(window, main_buffer, render_ratio, max_ratio);
 
     int target_fps = mode.refresh_rate;
 
     float target_spf = 1.0f / (float)target_fps;
-    zero_input_events.frame_t = target_spf;
+    sdl_input.frame_t = target_spf;
 
     uint64_t last_counter, pre_render_counter, total_counter;
 
@@ -118,7 +135,7 @@ int main ()
     bool quit = false;
     while(!quit)
     {
-        main_input_events = zero_input_events;
+        sdl_buttons = reset_buttons;
         SDL_Event event;
         while(SDL_PollEvent(&event))
         {
@@ -129,70 +146,76 @@ int main ()
                     quit = true;
                 } break;
 
+                case SDL_MOUSEMOTION:
+                {
+                    sdl_input.mouse_x = event.motion.x / render_ratio;
+                    sdl_input.mouse_y = event.motion.y / render_ratio;
+                } break;
+
                 case SDL_KEYDOWN: 
                 {
                     switch(event.key.keysym.sym)
                     {
                         case SDLK_SPACE:
                         {
-                            main_input_events.keyboard_press_space = true;
+                            sdl_buttons.keyboard_press_space = true;
                         } break;
 
                         case SDLK_w:
                         {
-                            main_input_events.keyboard_press_w = true;
+                            sdl_buttons.keyboard_press_w = true;
                         } break;
 
                         case SDLK_a:
                         {
-                            main_input_events.keyboard_press_a = true;
+                            sdl_buttons.keyboard_press_a = true;
                         } break;
 
                         case SDLK_s:
                         {
-                            main_input_events.keyboard_press_s = true;
+                            sdl_buttons.keyboard_press_s = true;
                         } break;
 
                         case SDLK_d:
                         {
-                            main_input_events.keyboard_press_d = true;
+                            sdl_buttons.keyboard_press_d = true;
                         } break;
 
                         case SDLK_UP:
                         {
-                            main_input_events.keyboard_press_up = true;
+                            sdl_buttons.keyboard_press_up = true;
                         } break;
 
                         case SDLK_LEFT:
                         {
-                            main_input_events.keyboard_press_left = true;
+                            sdl_buttons.keyboard_press_left = true;
                         } break;
 
                         case SDLK_DOWN:
                         {
-                            main_input_events.keyboard_press_down = true;
+                            sdl_buttons.keyboard_press_down = true;
                         } break;
 
                         case SDLK_RIGHT:
                         {
-                            main_input_events.keyboard_press_right = true;
+                            sdl_buttons.keyboard_press_right = true;
                         } break;
 
                         case SDLK_LSHIFT:
                         {
-                            main_input_events.keyboard_press_shift = true;
+                            sdl_buttons.keyboard_press_shift = true;
                         } break;
 
                         case SDLK_RETURN:
                         {   
-                            screen_mode = screen_mode < max_ratio ? ++screen_mode : 0;
-                            set_screen_size(window, main_buffer, screen_mode, max_ratio);
+                            render_ratio = render_ratio < max_ratio ? ++render_ratio : 1;
+                            set_screen_size(window, main_buffer, render_ratio, max_ratio);
                         } break;
 
                         case SDLK_BACKSPACE:
                         {   
-                            screen_mode = screen_mode >= 0 ? --screen_mode : max_ratio;
-                            set_screen_size(window, main_buffer, screen_mode, max_ratio);
+                            render_ratio = render_ratio >= 1 ? --render_ratio : max_ratio;
+                            set_screen_size(window, main_buffer, render_ratio, max_ratio);
                         } break;
                     }
                 } break;
@@ -203,54 +226,56 @@ int main ()
                     {
                         case SDLK_w:
                         {
-                            main_input_events.keyboard_release_w = true;
+                            sdl_buttons.keyboard_release_w = true;
                         } break;
 
                         case SDLK_a:
                         {
-                            main_input_events.keyboard_release_a = true;
+                            sdl_buttons.keyboard_release_a = true;
                         } break;
 
                         case SDLK_s:
                         {
-                            main_input_events.keyboard_release_s = true;
+                            sdl_buttons.keyboard_release_s = true;
                         } break;
 
                         case SDLK_d:
                         {
-                            main_input_events.keyboard_release_d = true;
+                            sdl_buttons.keyboard_release_d = true;
                         } break;
 
                         case SDLK_UP:
                         {
-                            main_input_events.keyboard_release_up = true;
+                            sdl_buttons.keyboard_release_up = true;
                         } break;
 
                         case SDLK_LEFT:
                         {
-                            main_input_events.keyboard_release_left = true;
+                            sdl_buttons.keyboard_release_left = true;
                         } break;
 
                         case SDLK_DOWN:
                         {
-                            main_input_events.keyboard_release_down = true;
+                            sdl_buttons.keyboard_release_down = true;
                         } break;
 
                         case SDLK_RIGHT:
                         {
-                            main_input_events.keyboard_release_right = true;
+                            sdl_buttons.keyboard_release_right = true;
                         } break;
 
                         case SDLK_LSHIFT:
                         {
-                            main_input_events.keyboard_release_shift = true;
+                            sdl_buttons.keyboard_release_shift = true;
                         } break;
                     }
                 } break;
             }
         }
+
+        sdl_input.buttons = sdl_buttons;
         
-        main_game_loop(main_buffer, platform_memory, main_input_events);
+        main_game_loop(main_buffer, platform_memory, sdl_input);
 
         // Now apply pixel buffer to texture
         if(SDL_UpdateTexture(texture,
