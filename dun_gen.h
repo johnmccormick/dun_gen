@@ -3,23 +3,30 @@
 #include <string.h>
 #include <sys/time.h>
 
+
 struct button_events
 {
 	bool keyboard_press_w;
     bool keyboard_release_w;
+
     bool keyboard_press_s;
     bool keyboard_release_s;
+
     bool keyboard_press_a;
     bool keyboard_release_a;
+
     bool keyboard_press_d;
     bool keyboard_release_d;
 
     bool keyboard_press_up;
     bool keyboard_release_up;
+
     bool keyboard_press_down;
     bool keyboard_release_down;
+
     bool keyboard_press_left;
     bool keyboard_release_left;
+
     bool keyboard_press_right;
     bool keyboard_release_right;
 
@@ -30,19 +37,11 @@ struct button_events
 
     bool mouse_press_left;
     bool mouse_release_left;
+
     bool mouse_press_right;
     bool mouse_release_right;
 };
 
-struct input_events
-{
-	int mouse_x;
-    int mouse_y;
-
-    struct button_events buttons;
-
-    float frame_t;
-};
 
 #define KEY_W 0
 #define KEY_A 1
@@ -53,6 +52,20 @@ struct input_events
 #define KEY_LEFT 6
 #define KEY_RIGHT 7
 #define KEY_SHIFT 8
+#define KEY_SPACE 9
+#define MOUSE_LEFT 10
+#define MOUSE_RIGHT 11
+#define BUTTON_COUNT 12
+
+struct input_events
+{
+	int mouse_x;
+    int mouse_y;
+
+    struct button_events buttons;
+
+    float frame_t;
+};
 
 struct input_key
 {
@@ -89,6 +102,46 @@ struct memory_arena
 	size_t used;
 };
 
+struct level_position
+{
+	int tile_x;
+	int tile_y;
+
+	float pixel_x;
+	float pixel_y;
+};
+
+enum entity_type
+{
+	entity_player,
+	entity_enemy,
+	entity_block,
+};
+
+#include "dun_gen_math.h"
+
+struct entity
+{
+	enum entity_type type;
+	int pixel_width;
+	int pixel_height;
+	struct level_position position;
+	struct vector2 velocity;
+};
+
+struct entity_node
+{
+	struct entity data;
+	struct entity *next;
+};
+
+struct entity_block
+{
+	uint count;
+	uint entity_index[64];
+	struct entity_block *next;
+};
+
 struct level
 {
 	uint index;
@@ -102,33 +155,8 @@ struct level
 	struct tile_offset next_offset;
 	float render_transition;
 	bool frame_rendered;
-};
 
-struct level_position
-{
-	int tile_x;
-	int tile_y;
-
-	float pixel_x;
-	float pixel_y;
-};
-
-#include "dun_gen_math.h"
-
-enum entity_type
-{
-	entity_player,
-	entity_enemy,
-	entity_block,
-};
-
-struct entity
-{
-	enum entity_type type;
-	int pixel_width;
-	int pixel_height;
-	struct level_position position;
-	struct vector2 velocity;
+	struct entity_block first_entity_block;
 };
 
 struct game_state
@@ -141,8 +169,17 @@ struct game_state
 	uint level_index; 
 
 	struct level *current_level;
-	struct entity player_1;
 
+	int entity_count;
+
+	//TEMP: Transition to entity nodes
+	struct entity entities[65536];
+
+#define MAX_PLAYERS 1
+	int player_entity_index[MAX_PLAYERS];
+
+	int player_width;
+	int player_height;
 	int base_player_velocity;
 
 	float level_transition_time;
