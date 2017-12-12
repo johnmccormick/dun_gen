@@ -36,11 +36,13 @@ uint32_t get_tile_colour (int tile_value, float level_render_gradient, uint32_t 
 	return colour;
 }
 
-void render_game(struct pixel_buffer *buffer, struct game_state *game, struct input_events input)
+#define pixel_epsilon 0.0001f
+
+void render_game(struct pixel_buffer *buffer, struct game_state *game)
 {
 	// Converts player map coordinate to centered position in terms of pixels
-	int player_1_x = round((game->player_1.position.tile_x * game->tile_size) + game->player_1.position.pixel_x);
-	int player_1_y = round((game->player_1.position.tile_y * game->tile_size) + game->player_1.position.pixel_y);
+	int player_1_x = round((game->player_1.position.tile_x * game->tile_size) + (game->player_1.position.pixel_x) - (pixel_epsilon * 2));
+	int player_1_y = round((game->player_1.position.tile_y * game->tile_size) + (game->player_1.position.pixel_y) - (pixel_epsilon * 2));
 
 	int levels_to_render = 1;
 	int levels_rendered = 0;
@@ -562,7 +564,7 @@ bool test_wall_collision (float x_diff, float delta_x, float top_y, float bottom
 {
 	bool result = false;
 
-	float t_epsilon = 0.00001f;
+	float t_epsilon = pixel_epsilon;
 
 	if (delta_x != 0.0f)
 	{
@@ -732,8 +734,8 @@ void main_game_loop (struct pixel_buffer *buffer, struct memory_block platform_m
 		game->player_1.position.pixel_x = game->tile_size / 2;
 		game->player_1.position.pixel_y = game->tile_size / 2;
 
-		game->player_1.pixel_width = 6;
-		game->player_1.pixel_height = 6;
+		game->player_1.pixel_width = 7;
+		game->player_1.pixel_height = 7;
 
 		// Prep next level
 		game->current_level->next_level = generate_level(&game->world_memory, game->current_level);
@@ -854,8 +856,8 @@ void main_game_loop (struct pixel_buffer *buffer, struct memory_block platform_m
 						int tile_to_player_y = tile_y - game->player_1.position.tile_y;
 
 						// Add half player diameter to wall borders for Minkowski collision
-						float half_player_width = game->player_1.pixel_width / 2;
-						float half_player_height = game->player_1.pixel_height / 2;
+						float half_player_width = (float)game->player_1.pixel_width / 2.0f;
+						float half_player_height = (float)game->player_1.pixel_height / 2.0f;
 
 						printf("half_player_width %f\n", half_player_width);
 
