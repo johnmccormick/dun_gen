@@ -6,12 +6,6 @@
 #include "dun_gen_platform.h"
 #include "dun_gen_math.h"
 
-struct tile_offset
-{
-	int x;
-	int y;
-};
-
 struct memory_arena
 {
 	uint8_t *base;
@@ -19,14 +13,9 @@ struct memory_arena
 	size_t used;
 };
 
-struct level_position
-{
-	int tile_x;
-	int tile_y;
+void *push_struct (struct memory_arena *game_storage, int struct_size);
 
-	float pixel_x;
-	float pixel_y;
-};
+#include "dun_gen_tile.h"
 
 enum entity_type
 {
@@ -44,35 +33,11 @@ struct entity
 	struct vector2 velocity;
 };
 
-struct entity_node
-{
-	struct entity data;
-	struct entity *next;
-};
-
-struct entity_block
-{
-	uint count;
-	uint entity_index[64];
-	struct entity_block *next;
-};
-
-struct level
-{
-	uint index;
-	int *map;
-	int width;
-	int height;
-	struct tile_offset entrance;
-	struct tile_offset exit;
-	struct level *prev_level;
-	struct level *next_level;
-	struct tile_offset next_offset;
-	float render_transition;
-	bool frame_rendered;
-
-	struct entity_block first_entity_block;
-};
+// struct entity_node
+// {
+// 	struct entity data;
+// 	struct entity *next;
+// };
 
 struct game_state
 {
