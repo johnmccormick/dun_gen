@@ -1,5 +1,7 @@
 #include <stdbool.h>
 
+#define array_count(array) (sizeof(array) / sizeof(array[0]))
+
 struct pixel_buffer
 {
     void *pixels;

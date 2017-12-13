@@ -253,6 +253,9 @@ int main ()
 
         main_game_loop(main_buffer, game_memory, sdl_input);
 
+        // Temporary for toggling pause 
+        sdl_input.buttons.keyboard_space = false;
+
         // Now apply pixel buffer to texture
         if(SDL_UpdateTexture(texture,
           NULL, main_buffer->pixels,

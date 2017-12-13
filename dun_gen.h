@@ -39,24 +39,27 @@ struct entity
 // 	struct entity *next;
 // };
 
+#define MAX_PLAYERS 1
+
 struct game_state
 {
 	bool initialised;
+	bool paused;
 
 	struct memory_arena world_memory;
-	
-	int tile_size;
-	uint level_index; 
-
-	struct level *current_level;
-
-	int entity_count;
 
 	//TEMP: Transition to entity nodes
+	int entity_count;
 	struct entity entities[65536];
-
-#define MAX_PLAYERS 1
 	int player_entity_index[MAX_PLAYERS];
+
+	int tile_size;
+
+	struct level *first_level;
+	struct level *current_level;
+	struct index_block *first_free_block;	
+
+	struct level_position camera_position;
 
 	int player_width;
 	int player_height;
@@ -66,6 +69,4 @@ struct game_state
 
 	int next_render_depth;
 	int prev_render_depth;
-
-	bool paused;
 };

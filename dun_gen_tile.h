@@ -13,11 +13,11 @@ struct tile_offset
 	int y;
 };
 
-struct entity_index_block
+struct index_block
 {
 	uint count;
-	uint entity_index[64];
-	struct entity_block *next;
+	uint index[64];
+	struct index_block *next;
 };
 
 struct level
@@ -34,5 +34,5 @@ struct level
 	float render_transition;
 	bool frame_rendered;
 
-	struct entity_index_block first_entity_index_block;
+	struct index_block first_block;
 };

@@ -24,7 +24,7 @@ void initialise_memory_arena (struct memory_arena *game_storage, uint8_t *base, 
 	game_storage->used = 0;
 }
 
-#define pixel_epsilon 0.0001f
+#define pixel_epsilon 0.001f
 
 // Function works swapping x for y / top and bottom for left and right
 bool test_wall_collision (float x_diff, float delta_x, float top_y, float bottom_y, float delta_y, float *t_min)
@@ -96,6 +96,61 @@ struct entity *get_entity (struct game_state *game, int entity_index)
 	return entity_result;
 }
 
+void change_entity_level(struct game_state *game, struct memory_arena *world_memory, uint entity_index, struct level *old_level, struct level *new_level)
+{
+	if (old_level != new_level)
+	{
+		if (old_level)
+		{
+			bool entity_found = false;
+			struct index_block *first_block = &old_level->first_block;
+			for (struct index_block *block = first_block; block != 0 && !entity_found; block = block->next)
+			{
+				for (int index = 0; index < block->count && !entity_found; ++index)
+				{
+					if (block->index[index] == entity_index)
+					{
+						block->index[index] = first_block->index[--first_block->count];
+
+						if (first_block->count == 0)
+						{
+							struct index_block *next_block = first_block->next;
+							*first_block = *next_block;
+
+							next_block->next = game->first_free_block;
+							game->first_free_block = next_block;
+						}
+
+						entity_found = true;
+					}
+				}
+			}
+		}
+
+		struct index_block *block = &new_level->first_block;
+		if (block->count == array_count(block))
+		{
+			struct index_block *old_block = game->first_free_block;
+
+			if (old_block)
+			{
+				game->first_free_block = old_block->next;
+			}
+			else
+			{
+				old_block = push_struct(world_memory, sizeof(struct index_block));
+			}
+			
+			*old_block = *block;
+			block->next = old_block;
+			block->count = 0;
+		}
+
+		block->index[block->count++] = entity_index;
+
+	}
+}
+
 // This should eventually take entity index for moving
 // an entity between levels, and game->current_level
 // revolves only around player 0 (for the time being)
@@ -115,8 +170,6 @@ void become_next_level(struct game_state *game, int player_index)
 		// Create next level
 		game->current_level->next_level = generate_level(&game->world_memory, game->current_level);
 
-		game->current_level->next_level->index = game->level_index + 1;
-
 		game->current_level->next_offset = calculate_next_offsets(*game->current_level);
 	}
 
@@ -125,6 +178,8 @@ void become_next_level(struct game_state *game, int player_index)
 
 	player->position.tile_x = game->current_level->entrance.x;
 	player->position.tile_y = game->current_level->entrance.y;
+
+	change_entity_level(game, &game->world_memory, player_entity_index, game->current_level->prev_level, game->current_level);
 
 	++game->prev_render_depth;			
 	--game->next_render_depth;
@@ -141,10 +196,11 @@ void become_prev_level(struct game_state *game, int player_index)
 	player->position.tile_x = game->current_level->exit.x;
 	player->position.tile_y = game->current_level->exit.y;
 
+	change_entity_level(game, &game->world_memory, player_entity_index, game->current_level->next_level, game->current_level);
+
 	++game->next_render_depth;
 	--game->prev_render_depth;
 }
-
 
 void main_game_loop (struct pixel_buffer *buffer, struct platform_memory memory, struct input_events input)
 {
@@ -159,6 +215,8 @@ void main_game_loop (struct pixel_buffer *buffer, struct platform_memory memory,
 		game->current_level = generate_level(&game->world_memory, NULL);
 		game->current_level->render_transition = 0;
 
+		game->first_level = game->current_level;
+
 		// Visual settings
 		game->tile_size = 10;
 
@@ -168,7 +226,12 @@ void main_game_loop (struct pixel_buffer *buffer, struct platform_memory memory,
 		game->player_width = 7;
 		game->player_height = 7;
 
+		// Player 0
 		game->player_entity_index[0] = add_player(game, &game->world_memory, game->current_level);
+		change_entity_level(game, &game->world_memory, game->player_entity_index[0], 0, game->current_level);
+
+		// Center camera on player 0
+		game->camera_position = game->entities[game->player_entity_index[0]].position;
 
 		// Prep next level
 		game->current_level->next_level = generate_level(&game->world_memory, game->current_level);
@@ -589,6 +652,19 @@ void main_game_loop (struct pixel_buffer *buffer, struct platform_memory memory,
 					*pixel++ = colour;
 				}
 				buffer_pointer += buffer->texture_pitch;
+			}
+
+			// Render entities
+			struct index_block *first_block = &level_to_render->first_block;
+			for (struct index_block *block = first_block; block != 0; block = block->next)
+			{
+				for (int index = 0; index < block->count; ++index)
+				{
+					int entity_index = block->index[index];
+					struct entity entity_to_render = game->entities[entity_index];
+					printf("index: %i \nw: %i h: %i\n ", entity_index, entity_to_render.pixel_width, entity_to_render.pixel_height);
+					printf("tile: x %i y %i \n pixel: x: %f y: %f\n ", entity_to_render.position.tile_x, entity_to_render.position.tile_y, entity_to_render.position.pixel_x, entity_to_render.position.pixel_y);
+				}
 			}
 
 			level_to_render->frame_rendered = 1;
