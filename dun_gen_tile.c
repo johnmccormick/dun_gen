@@ -263,3 +263,35 @@ bool is_collision_tile(struct game_state *game, struct level current_level, int 
 
 	return collision_result;
 }
+
+struct vector2 get_level_position_offset(struct game_state *game, struct level_position p1, struct level_position p2)
+{
+	struct vector2 result;
+
+	int tile_x_offset = p1.tile_x - p2.tile_x;
+	int tile_y_offset = p1.tile_y - p2.tile_y;
+
+	float pixel_x_offset = p1.pixel_x - p2.pixel_x;
+	float pixel_y_offset = p1.pixel_y - p2.pixel_y;
+
+	int tile_size = game->tile_size;
+
+	result.x = (tile_size * tile_x_offset) + pixel_x_offset;
+	result.y = (tile_size * tile_y_offset) + pixel_y_offset;
+
+	return result;
+
+}
+
+struct level_position get_level_center_position(int width, int height)
+{
+	struct level_position result;
+
+	result.tile_x = width / 2;
+	result.tile_y = height / 2;
+
+	result.pixel_x = width % 2;
+	result.pixel_y = height % 2;
+
+	return result;
+}

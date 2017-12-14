@@ -1,6 +1,8 @@
 #include "dun_gen.h"
 #include "dun_gen_tile.c"
 
+#include "dun_gen_debug.c"
+
 void *push_struct (struct memory_arena *game_storage, int struct_size)
 {
 	void *result = NULL;
@@ -24,14 +26,12 @@ void initialise_memory_arena (struct memory_arena *game_storage, uint8_t *base, 
 	game_storage->used = 0;
 }
 
-#define pixel_epsilon 0.001f
-
 // Function works swapping x for y / top and bottom for left and right
 bool test_wall_collision (float x_diff, float delta_x, float top_y, float bottom_y, float delta_y, float *t_min)
 {
 	bool result = false;
 
-	float t_epsilon = pixel_epsilon;
+	float t_epsilon = 0.001;
 
 	if (delta_x != 0.0f)
 	{
@@ -63,8 +63,6 @@ int create_entity(struct game_state *game, struct memory_arena *world_memory, st
 	new_entity->position = position;
 
 	int index = game->entity_count++;
-
-	printf("add index %i %p\n", index, new_entity);
 
 	return index;
 }
@@ -183,6 +181,8 @@ void become_next_level(struct game_state *game, int player_index)
 
 	++game->prev_render_depth;			
 	--game->next_render_depth;
+
+	game->camera_position = get_level_center_position(game->current_level->width, game->current_level->height);
 }
 
 void become_prev_level(struct game_state *game, int player_index)
@@ -200,6 +200,8 @@ void become_prev_level(struct game_state *game, int player_index)
 
 	++game->next_render_depth;
 	--game->prev_render_depth;
+
+	game->camera_position = get_level_center_position(game->current_level->width, game->current_level->height);
 }
 
 void main_game_loop (struct pixel_buffer *buffer, struct platform_memory memory, struct input_events input)
@@ -427,6 +429,11 @@ void main_game_loop (struct pixel_buffer *buffer, struct platform_memory memory,
 			become_next_level(game, player_index);
 		}
 
+// Center camera on player[0]
+#if 0
+		game->camera_position = player[0]->position;
+#endif
+
 		// Process render transitions
 		// Active level always incremented (until at maximum render transition);
 		game->current_level->render_transition = increment_to_max(game->current_level->render_transition, input.frame_t, game->level_transition_time);
@@ -520,8 +527,9 @@ void main_game_loop (struct pixel_buffer *buffer, struct platform_memory memory,
 		
 		// Render levels/entities
 		// Converts player map coordinate to centered position in terms of pixels
-		int player_1_x = round((player[player_index]->position.tile_x * game->tile_size) + (player[player_index]->position.pixel_x) - (pixel_epsilon * 2));
-		int player_1_y = round((player[player_index]->position.tile_y * game->tile_size) + (player[player_index]->position.pixel_y) - (pixel_epsilon * 2));
+		struct level_position camera_position = game->camera_position;
+		int camera_x = (camera_position.tile_x * game->tile_size) + (camera_position.pixel_x);
+		int camera_y = (camera_position.tile_y * game->tile_size) + (camera_position.pixel_y);
 
 		int levels_to_render = 1;
 		int levels_rendered = 0;
@@ -624,8 +632,11 @@ void main_game_loop (struct pixel_buffer *buffer, struct platform_memory memory,
 
 			uint8_t *buffer_pointer = (uint8_t *)buffer->pixels;
 
-			int buffer_x_offset = (((buffer->client_width / 2) - player_1_x + level_offset_x) * buffer->bytes_per_pixel);
-			int buffer_y_offset = (((buffer->client_height / 2) - player_1_y + level_offset_y) * buffer->texture_pitch);
+			int screen_center_x = (buffer->client_width / 2);
+			int screen_center_y = (buffer->client_height / 2);
+
+			int buffer_x_offset = ((screen_center_x - camera_x + level_offset_x) * buffer->bytes_per_pixel);
+			int buffer_y_offset = ((screen_center_y - camera_y + level_offset_y) * buffer->texture_pitch);
 
 			buffer_pointer += make_neg_zero(buffer_x_offset);
 			buffer_pointer += make_neg_zero(buffer_y_offset);
@@ -662,28 +673,37 @@ void main_game_loop (struct pixel_buffer *buffer, struct platform_memory memory,
 				{
 					int entity_index = block->index[index];
 					struct entity entity_to_render = game->entities[entity_index];
-					printf("index: %i \nw: %i h: %i\n ", entity_index, entity_to_render.pixel_width, entity_to_render.pixel_height);
-					printf("tile: x %i y %i \n pixel: x: %f y: %f\n ", entity_to_render.position.tile_x, entity_to_render.position.tile_y, entity_to_render.position.pixel_x, entity_to_render.position.pixel_y);
+
+					struct vector2 entity_offset = get_level_position_offset(game, entity_to_render.position, game->camera_position);
+
+					int pixel_offset_x = screen_center_x + round((entity_offset.x) - (entity_to_render.pixel_width*0.5f) + 0.002);
+					int pixel_offset_y = screen_center_y + round((entity_offset.y) - (entity_to_render.pixel_height*0.5f) + 0.002);
+
+					uint8_t *entity_pointer = (uint8_t *)buffer->pixels;
+					entity_pointer += (pixel_offset_y * buffer->texture_pitch)
+									+ (pixel_offset_x * buffer->bytes_per_pixel);
+
+					for (int y = 0; y < entity_to_render.pixel_height; ++y)
+					{
+						if (pixel_offset_y + y >= 0 && pixel_offset_y + y < buffer->client_height)
+						{
+							uint32_t *pixel = (uint32_t *)entity_pointer;
+							for (int x = 0; x < entity_to_render.pixel_width; ++x)
+							{
+								if (pixel_offset_x + x >= 0 && pixel_offset_x + x < buffer->client_width)
+								{
+									*pixel++ = 0x000000ff;
+								}
+							}
+						}
+						entity_pointer += buffer->texture_pitch;
+					}
 				}
 			}
 
 			level_to_render->frame_rendered = 1;
 
 			levels_rendered++;
-		}
-
-		uint8_t *player_pointer = (uint8_t *)buffer->pixels;
-		player_pointer += (((buffer->client_height / 2) - (player[0]->pixel_height / 2)) * buffer->texture_pitch)
-						+ (((buffer->client_width / 2) - (player[0]->pixel_width / 2)) * buffer->bytes_per_pixel);
-
-		for (int y = 0; y < player[0]->pixel_height; ++y)
-		{
-			uint32_t *pixel = (uint32_t *)player_pointer;
-			for (int x = 0; x < player[0]->pixel_width; ++x)
-			{
-				*pixel++ = 0x000000ff;
-			}
-			player_pointer += buffer->texture_pitch;
 		}
 
 		uint8_t *mouse_pointer = (uint8_t *)buffer->pixels;
