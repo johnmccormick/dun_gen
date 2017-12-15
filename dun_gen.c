@@ -1,7 +1,38 @@
 #include "dun_gen.h"
-#include "dun_gen_tile.c"
-
 #include "dun_gen_debug.c"
+
+uint32_t create_colour_argb(float a, uint8_t r, uint8_t g, uint8_t b, uint32_t *pixel)
+{
+	uint32_t colour = 0;
+
+	uint8_t buffer_red = (*pixel >> 16) & 0xff;
+	uint8_t buffer_green = (*pixel >> 8) & 0xff;
+	uint8_t buffer_blue = (*pixel) & 0xff;
+
+	// Linear alpha blend of new and old pixels.
+	float result_red = buffer_red + (a * (r - buffer_red));
+	float result_green = buffer_green + (a * (g - buffer_green));
+	float result_blue = buffer_blue + (a * (b - buffer_blue));
+
+	colour = (uint8_t)(result_red + 0.5f) << 16 | (uint8_t)(result_green + 0.5f) << 8 | (uint8_t)(result_blue + 0.5f);
+
+	return colour;
+}
+
+uint32_t create_colour_32bit(float a, uint32_t colour, uint32_t *pixel)
+{
+	uint8_t r, g, b;
+
+	r = (colour >> 16) & 0xff;
+	g = (colour >> 8) & 0xff;
+	b = (colour) & 0xff;
+
+	colour = create_colour_argb(a, r, g, b, pixel);
+
+	return colour;
+}
+
+#include "dun_gen_tile.c"
 
 void *push_struct (struct memory_arena *game_storage, int struct_size)
 {
@@ -49,49 +80,6 @@ bool test_wall_collision (float x_diff, float delta_x, float top_y, float bottom
 	}
 
 	return result;
-}
-
-int create_entity(struct game_state *game, struct memory_arena *world_memory, struct level *target_level, enum entity_type type, struct level_position position, int width, int height)
-{
-	//struct entity_node *new_entity_node = push_struct(world_memory, sizeof(struct entity_node));
-
-	struct entity *new_entity = &game->entities[game->entity_count];
-
-	new_entity->type = type;
-	new_entity->pixel_width = width;
-	new_entity->pixel_height = height;
-	new_entity->position = position;
-
-	int index = game->entity_count++;
-
-	return index;
-}
-
-int add_player (struct game_state *game, struct memory_arena *world_memory, struct level *target_level)
-{
-	struct level_position position;
-
-	position.tile_x = game->current_level->width / 2;
-	position.tile_y = game->current_level->height / 2;
-
-	position.pixel_x = game->tile_size / 2;
-	position.pixel_y = game->tile_size / 2;
-
-	int width = game->player_width;
-	int height = game->player_height;
-
-	int index = create_entity(game, world_memory, target_level, entity_player, position, width, height);
-
-	return index;
-}
-
-struct entity *get_entity (struct game_state *game, int entity_index)
-{
-	struct entity *entity_result;
-
-	entity_result = &game->entities[entity_index];
-
-	return entity_result;
 }
 
 void change_entity_level(struct game_state *game, struct memory_arena *world_memory, uint entity_index, struct level *old_level, struct level *new_level)
@@ -149,6 +137,74 @@ void change_entity_level(struct game_state *game, struct memory_arena *world_mem
 	}
 }
 
+int create_entity(struct game_state *game, struct memory_arena *world_memory, struct level *target_level, enum entity_type type, struct level_position position, int width, int height, uint32_t colour)
+{
+	//struct entity_node *new_entity_node = push_struct(world_memory, sizeof(struct entity_node));
+
+	struct entity *new_entity = &game->entities[game->entity_count];
+
+	new_entity->type = type;
+	new_entity->pixel_width = width;
+	new_entity->pixel_height = height;
+	new_entity->position = position;
+	new_entity->colour = colour;
+
+	int index = game->entity_count++;
+
+	change_entity_level(game, world_memory, index, 0, target_level);
+
+	return index;
+}
+
+int add_player (struct game_state *game, struct memory_arena *world_memory, struct level *target_level)
+{
+	struct level_position position;
+
+	position.tile_x = game->current_level->width / 2;
+	position.tile_y = game->current_level->height / 2;
+
+	position.pixel_x = game->tile_size / 2;
+	position.pixel_y = game->tile_size / 2;
+
+	int width = game->player_width;
+	int height = game->player_height;
+
+	uint32_t colour = 0x000000ff;
+
+	int index = create_entity(game, world_memory, target_level, entity_player, position, width, height, colour);
+
+	return index;
+}
+
+int add_block (struct game_state *game, struct memory_arena *world_memory, struct level *target_level)
+{
+	struct level_position position;
+
+	position.tile_x = (rand() % (target_level->width - 2)) + 1;
+	position.tile_y = (rand() % (target_level->height - 2)) + 1;
+
+	position.pixel_x = game->tile_size*0.5f;
+	position.pixel_y = game->tile_size*0.5f;
+
+	int width = game->tile_size;
+	int height = game->tile_size;
+
+	uint32_t colour = 0x351901;
+
+	int index = create_entity(game, world_memory, target_level, entity_player, position, width, height, colour);
+
+	return index;
+}
+
+struct entity *get_entity (struct game_state *game, int entity_index)
+{
+	struct entity *entity_result;
+
+	entity_result = &game->entities[entity_index];
+
+	return entity_result;
+}
+
 // This should eventually take entity index for moving
 // an entity between levels, and game->current_level
 // revolves only around player 0 (for the time being)
@@ -169,6 +225,9 @@ void become_next_level(struct game_state *game, int player_index)
 		game->current_level->next_level = generate_level(&game->world_memory, game->current_level);
 
 		game->current_level->next_offset = calculate_next_offsets(*game->current_level);
+
+		add_block(game, &game->world_memory, game->current_level->next_level);
+		add_block(game, &game->world_memory, game->current_level->next_level);
 	}
 
 	int player_entity_index = game->player_entity_index[player_index];
@@ -182,7 +241,7 @@ void become_next_level(struct game_state *game, int player_index)
 	++game->prev_render_depth;			
 	--game->next_render_depth;
 
-	game->camera_position = get_level_center_position(game->current_level->width, game->current_level->height);
+//	game->camera_position = get_level_center_position(game->current_level->width, game->current_level->height);
 }
 
 void become_prev_level(struct game_state *game, int player_index)
@@ -201,7 +260,7 @@ void become_prev_level(struct game_state *game, int player_index)
 	++game->next_render_depth;
 	--game->prev_render_depth;
 
-	game->camera_position = get_level_center_position(game->current_level->width, game->current_level->height);
+//	game->camera_position = get_level_center_position(game->current_level->width, game->current_level->height);
 }
 
 void main_game_loop (struct pixel_buffer *buffer, struct platform_memory memory, struct input_events input)
@@ -225,18 +284,20 @@ void main_game_loop (struct pixel_buffer *buffer, struct platform_memory memory,
 		game->level_transition_time = 5000*input.frame_t;
 
 		// Center player
-		game->player_width = 7;
-		game->player_height = 7;
+		game->player_width = 8;
+		game->player_height = 8;
 
 		// Player 0
 		game->player_entity_index[0] = add_player(game, &game->world_memory, game->current_level);
-		change_entity_level(game, &game->world_memory, game->player_entity_index[0], 0, game->current_level);
 
 		// Center camera on player 0
 		game->camera_position = game->entities[game->player_entity_index[0]].position;
 
 		// Prep next level
 		game->current_level->next_level = generate_level(&game->world_memory, game->current_level);
+		add_block(game, &game->world_memory, game->current_level->next_level);
+		add_block(game, &game->world_memory, game->current_level->next_level);
+		add_block(game, &game->world_memory, game->current_level->next_level);
 		game->current_level->next_offset = calculate_next_offsets(*game->current_level);
 		
 		struct level *this_level = game->current_level;
@@ -300,6 +361,15 @@ void main_game_loop (struct pixel_buffer *buffer, struct platform_memory memory,
 		// Friction
 		new_player_acceleration_x += -12*player[0]->velocity.x;
 		new_player_acceleration_y += -12*player[0]->velocity.y;
+
+		if (fabs(player[0]->velocity.x) < 0.1)
+		{
+			player[0]->velocity.x = 0;	
+		}
+		if (fabs(player[0]->velocity.y) < 0.1)
+		{
+			player[0]->velocity.y = 0;	
+		}
 
 		// p = at^2 + vt + p
 		player_position_delta.x = (1/2*new_player_acceleration_x*(pow(input.frame_t, 2))) + player[0]->velocity.x*input.frame_t;
@@ -429,10 +499,8 @@ void main_game_loop (struct pixel_buffer *buffer, struct platform_memory memory,
 			become_next_level(game, player_index);
 		}
 
-// Center camera on player[0]
-#if 0
+		// Center camera on player[0]
 		game->camera_position = player[0]->position;
-#endif
 
 		// Process render transitions
 		// Active level always incremented (until at maximum render transition);
@@ -635,19 +703,19 @@ void main_game_loop (struct pixel_buffer *buffer, struct platform_memory memory,
 			int screen_center_x = (buffer->client_width / 2);
 			int screen_center_y = (buffer->client_height / 2);
 
-			int buffer_x_offset = ((screen_center_x - camera_x + level_offset_x) * buffer->bytes_per_pixel);
-			int buffer_y_offset = ((screen_center_y - camera_y + level_offset_y) * buffer->texture_pitch);
+			int render_offset_x = screen_center_x - camera_x + level_offset_x;
+			int render_offset_y = screen_center_y - camera_y + level_offset_y;
 
-			buffer_pointer += make_neg_zero(buffer_x_offset);
-			buffer_pointer += make_neg_zero(buffer_y_offset);
+			buffer_pointer += make_neg_zero(render_offset_x * buffer->bytes_per_pixel);
+			buffer_pointer += make_neg_zero(render_offset_y * buffer->texture_pitch);
 
 			// First and last pixel of level tile to render on screen.
-			int first_tile_x = make_neg_zero(-buffer_x_offset / buffer->bytes_per_pixel);
-			int last_tile_x = first_tile_x + buffer->client_width - make_neg_zero(buffer_x_offset / buffer->bytes_per_pixel);
+			int first_tile_x = make_neg_zero(-render_offset_x);
+			int last_tile_x = first_tile_x + buffer->client_width - make_neg_zero(render_offset_x);
 			last_tile_x = last_tile_x > level_to_render->width * game->tile_size ? level_to_render->width * game->tile_size : last_tile_x;
 
-			int first_tile_y = make_neg_zero(-buffer_y_offset / buffer->texture_pitch);
-			int last_tile_y = first_tile_y + buffer->client_height - make_neg_zero(buffer_y_offset / buffer->texture_pitch);
+			int first_tile_y = make_neg_zero(-render_offset_y);
+			int last_tile_y = first_tile_y + buffer->client_height - make_neg_zero(render_offset_y);
 			last_tile_y = last_tile_y > level_to_render->height * game->tile_size ? level_to_render->height * game->tile_size : last_tile_y;
 
 			for (int y = first_tile_y; y < last_tile_y; ++y)
@@ -665,39 +733,52 @@ void main_game_loop (struct pixel_buffer *buffer, struct platform_memory memory,
 				buffer_pointer += buffer->texture_pitch;
 			}
 
-			// Render entities
+			// Render entities for level
 			struct index_block *first_block = &level_to_render->first_block;
 			for (struct index_block *block = first_block; block != 0; block = block->next)
 			{
 				for (int index = 0; index < block->count; ++index)
 				{
 					int entity_index = block->index[index];
+
+					float entity_render_gradient = level_render_gradient;
+
+					// TODO: Create more economical solution for drawing players independent of level gradient
+					for (int i = 0; i < array_count(game->player_entity_index); ++i)
+					{
+						if (entity_index == game->player_entity_index[i])
+						{
+							entity_render_gradient = 1.0f;
+						}
+					}
+
 					struct entity entity_to_render = game->entities[entity_index];
 
-					struct vector2 entity_offset = get_level_position_offset(game, entity_to_render.position, game->camera_position);
-
-					int pixel_offset_x = screen_center_x + round((entity_offset.x) - (entity_to_render.pixel_width*0.5f) + 0.002);
-					int pixel_offset_y = screen_center_y + round((entity_offset.y) - (entity_to_render.pixel_height*0.5f) + 0.002);
+					int entity_offset_x = render_offset_x + (entity_to_render.position.tile_x * game->tile_size) - (entity_to_render.pixel_width*0.5f) + entity_to_render.position.pixel_x + 0.002;
+					int entity_offset_y = render_offset_y + (entity_to_render.position.tile_y * game->tile_size) - (entity_to_render.pixel_height*0.5f) + entity_to_render.position.pixel_y + 0.002;
 
 					uint8_t *entity_pointer = (uint8_t *)buffer->pixels;
-					entity_pointer += (pixel_offset_y * buffer->texture_pitch)
-									+ (pixel_offset_x * buffer->bytes_per_pixel);
+					entity_pointer += (entity_offset_y * buffer->texture_pitch)
+									+ (entity_offset_x * buffer->bytes_per_pixel);
 
 					for (int y = 0; y < entity_to_render.pixel_height; ++y)
 					{
-						if (pixel_offset_y + y >= 0 && pixel_offset_y + y < buffer->client_height)
+						if (entity_offset_y + y >= 0 && entity_offset_y + y < buffer->client_height)
 						{
 							uint32_t *pixel = (uint32_t *)entity_pointer;
 							for (int x = 0; x < entity_to_render.pixel_width; ++x)
 							{
-								if (pixel_offset_x + x >= 0 && pixel_offset_x + x < buffer->client_width)
+								if (entity_offset_x + x >= 0 && entity_offset_x + x < buffer->client_width)
 								{
-									*pixel++ = 0x000000ff;
+									uint32_t colour = create_colour_32bit(entity_render_gradient, entity_to_render.colour, pixel);
+									*pixel++ = colour;
 								}
 							}
 						}
 						entity_pointer += buffer->texture_pitch;
 					}
+
+					//printf("level entity: %i\n", entity_index);
 				}
 			}
 

@@ -1,21 +1,3 @@
-uint32_t create_colour(float a, uint8_t r, uint8_t g, uint8_t b, uint32_t *pixel)
-{
-	uint32_t colour = 0;
-
-	uint8_t buffer_red = (*pixel >> 16) & 0xff;
-	uint8_t buffer_green = (*pixel >> 8) & 0xff;
-	uint8_t buffer_blue = (*pixel) & 0xff;
-
-	// Linear alpha blend of new and old pixels.
-	float result_red = buffer_red + (a * (r - buffer_red));
-	float result_green = buffer_green + (a * (g - buffer_green));
-	float result_blue = buffer_blue + (a * (b - buffer_blue));
-
-	colour = (uint8_t)(result_red + 0.5f) << 16 | (uint8_t)(result_green + 0.5f) << 8 | (uint8_t)(result_blue + 0.5f);
-
-	return colour;
-}
-
 uint32_t get_tile_colour (int tile_value, float level_render_gradient, uint32_t *pixel)
 {
 	uint32_t colour = 0;
@@ -23,12 +5,12 @@ uint32_t get_tile_colour (int tile_value, float level_render_gradient, uint32_t 
 	// Floor / Entrance / Exit
 	if (tile_value == 2 || tile_value == 3 || tile_value == 4)
 	{
-		colour = create_colour(level_render_gradient, 0xff, 0xff, 0xff, pixel);
+		colour = create_colour_argb(level_render_gradient, 0xff, 0xff, 0xff, pixel);
 	}
 	// Wall
 	else if (tile_value == 1)
 	{
-		colour = create_colour(level_render_gradient, 0x22, 0x22, 0x22, pixel);
+		colour = create_colour_argb(level_render_gradient, 0x22, 0x22, 0x22, pixel);
 	}
 
 	return colour;

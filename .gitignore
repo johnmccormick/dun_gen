@@ -3,4 +3,5 @@
 !sdl_dun_gen.c
 !dun_gen*
 dun_gen
-!build.sh
+dun_gen_debug
+!build*

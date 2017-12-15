@@ -31,6 +31,9 @@ struct entity
 	int pixel_height;
 	struct level_position position;
 	struct vector2 velocity;
+
+	uint32_t colour;
+	bool alpha;
 };
 
 // struct entity_node
