@@ -284,7 +284,7 @@ void main_game_loop (struct pixel_buffer *buffer, struct platform_memory memory,
 		game->level_transition_time = 5000*input.frame_t;
 
 		// Center player
-		game->player_width = 8;
+		game->player_width = 7;
 		game->player_height = 8;
 
 		// Player 0
@@ -596,8 +596,8 @@ void main_game_loop (struct pixel_buffer *buffer, struct platform_memory memory,
 		// Render levels/entities
 		// Converts player map coordinate to centered position in terms of pixels
 		struct level_position camera_position = game->camera_position;
-		int camera_x = (camera_position.tile_x * game->tile_size) + (camera_position.pixel_x);
-		int camera_y = (camera_position.tile_y * game->tile_size) + (camera_position.pixel_y);
+		int camera_x = (camera_position.tile_x * game->tile_size) + round(camera_position.pixel_x);
+		int camera_y = (camera_position.tile_y * game->tile_size) + round(camera_position.pixel_y);
 
 		int levels_to_render = 1;
 		int levels_rendered = 0;
@@ -754,28 +754,28 @@ void main_game_loop (struct pixel_buffer *buffer, struct platform_memory memory,
 
 					struct entity entity_to_render = game->entities[entity_index];
 
-					int entity_offset_x = render_offset_x + (entity_to_render.position.tile_x * game->tile_size) - (entity_to_render.pixel_width*0.5f) + entity_to_render.position.pixel_x + 0.002;
-					int entity_offset_y = render_offset_y + (entity_to_render.position.tile_y * game->tile_size) - (entity_to_render.pixel_height*0.5f) + entity_to_render.position.pixel_y + 0.002;
+					int entity_offset_x = render_offset_x + (entity_to_render.position.tile_x * game->tile_size) - (entity_to_render.pixel_width*0.5f) + round(entity_to_render.position.pixel_x + 0.002);
+					int entity_offset_y = render_offset_y + (entity_to_render.position.tile_y * game->tile_size) - (entity_to_render.pixel_height*0.5f) + round(entity_to_render.position.pixel_y + 0.002);
+
+					int min_x = clamp_min(entity_offset_x, 0);
+					int min_y = clamp_min(entity_offset_y, 0);
+
+					int max_x = clamp_max(entity_offset_x + entity_to_render.pixel_width, buffer->client_width);
+					int max_y = clamp_max(entity_offset_y + entity_to_render.pixel_height, buffer->client_height);
 
 					uint8_t *entity_pointer = (uint8_t *)buffer->pixels;
-					entity_pointer += (entity_offset_y * buffer->texture_pitch)
-									+ (entity_offset_x * buffer->bytes_per_pixel);
+					entity_pointer += (min_y * buffer->texture_pitch)
+									+ (min_x * buffer->bytes_per_pixel);
 
-					for (int y = 0; y < entity_to_render.pixel_height; ++y)
+					for (int y = min_y; y < max_y; ++y)
 					{
-						if (entity_offset_y + y >= 0 && entity_offset_y + y < buffer->client_height)
-						{
 							uint32_t *pixel = (uint32_t *)entity_pointer;
-							for (int x = 0; x < entity_to_render.pixel_width; ++x)
+							for (int x = min_x; x < max_x; ++x)
 							{
-								if (entity_offset_x + x >= 0 && entity_offset_x + x < buffer->client_width)
-								{
 									uint32_t colour = create_colour_32bit(entity_render_gradient, entity_to_render.colour, pixel);
 									*pixel++ = colour;
-								}
 							}
-						}
-						entity_pointer += buffer->texture_pitch;
+							entity_pointer += buffer->texture_pitch;
 					}
 
 					//printf("level entity: %i\n", entity_index);

@@ -79,3 +79,38 @@ float dot_product (struct vector2 a, struct vector2 b)
 
 	return result;
 }
+
+#define clamp_max(value, max) (value > max ? max : value)
+#define clamp_min(value, min) (value < min ? min : value)
+
+float clamp_min_max(float value, float min, float max)
+{
+	float result = value;
+
+	if (value < min)
+	{
+		result = min;
+	}
+	else if (value > max)
+	{
+		result = max;
+	}
+
+	return result;
+}
+
+float abs_clamp_min_max(float value, float min_max)
+{
+	float result = value;
+
+	if (value < -min_max)
+	{
+		result = -min_max;
+	}
+	else if (value > min_max)
+	{
+		result = min_max;
+	}
+
+	return result;
+}
