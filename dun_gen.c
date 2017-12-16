@@ -698,39 +698,44 @@ void main_game_loop (struct pixel_buffer *buffer, struct platform_memory memory,
 
 			float level_render_gradient = ((float)level_to_render->render_transition / (float)game->level_transition_time);
 
-			uint8_t *buffer_pointer = (uint8_t *)buffer->pixels;
-
+			// Render level
 			int screen_center_x = (buffer->client_width / 2);
 			int screen_center_y = (buffer->client_height / 2);
 
 			int render_offset_x = screen_center_x - camera_x + level_offset_x;
 			int render_offset_y = screen_center_y - camera_y + level_offset_y;
 
-			buffer_pointer += make_neg_zero(render_offset_x * buffer->bytes_per_pixel);
-			buffer_pointer += make_neg_zero(render_offset_y * buffer->texture_pitch);
-
-			// First and last pixel of level tile to render on screen.
-			int first_tile_x = make_neg_zero(-render_offset_x);
-			int last_tile_x = first_tile_x + buffer->client_width - make_neg_zero(render_offset_x);
-			last_tile_x = last_tile_x > level_to_render->width * game->tile_size ? level_to_render->width * game->tile_size : last_tile_x;
-
-			int first_tile_y = make_neg_zero(-render_offset_y);
-			int last_tile_y = first_tile_y + buffer->client_height - make_neg_zero(render_offset_y);
-			last_tile_y = last_tile_y > level_to_render->height * game->tile_size ? level_to_render->height * game->tile_size : last_tile_y;
-
-			for (int y = first_tile_y; y < last_tile_y; ++y)
+			for (int tile_y = 0; tile_y < level_to_render->height; ++tile_y)
 			{
-				uint32_t *pixel = (uint32_t *) buffer_pointer;
-				for (int x = first_tile_x; x < last_tile_x; ++x)
+				for (int tile_x = 0; tile_x < level_to_render->width; ++tile_x)
 				{
-					int tile_location = ((y / game->tile_size) * level_to_render->width) + (x / game->tile_size);
-					int tile_value = *(level_to_render->map + tile_location);
+					int tile_offset_x = render_offset_x + (tile_x * game->tile_size);
+					int tile_offset_y = render_offset_y + (tile_y * game->tile_size);
 
-					uint32_t colour = get_tile_colour(tile_value, level_render_gradient, pixel);
+					int min_x = clamp_min(tile_offset_x, 0);
+					int min_y = clamp_min(tile_offset_y, 0);
 
-					*pixel++ = colour;
+					int max_x = clamp_max(tile_offset_x + game->tile_size, buffer->client_width);
+					int max_y = clamp_max(tile_offset_y + game->tile_size, buffer->client_height);
+
+					uint8_t *tile_pointer = (uint8_t *)buffer->pixels;
+					tile_pointer += (min_y * buffer->texture_pitch)
+									+ (min_x * buffer->bytes_per_pixel);
+
+					for (int y = min_y; y < max_y; ++y)
+					{
+							uint32_t *pixel = (uint32_t *)tile_pointer;
+							for (int x = min_x; x < max_x; ++x)
+							{
+								int tile_location = ((tile_y) * level_to_render->width) + (tile_x);
+								int tile_value = *(level_to_render->map + tile_location);
+
+								uint32_t colour = get_tile_colour(tile_value, level_render_gradient, pixel);
+								*pixel++ = colour;
+							}
+							tile_pointer += buffer->texture_pitch;
+					}
 				}
-				buffer_pointer += buffer->texture_pitch;
 			}
 
 			// Render entities for level
