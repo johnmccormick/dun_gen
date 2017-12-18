@@ -36,7 +36,7 @@ uint32_t get_tile_colour (int tile_value, float level_render_gradient, uint32_t 
 	return colour;
 }
 
-#define pixel_epsilon 0.0001f
+#define pixel_epsilon 0.001f
 
 void render_game(struct pixel_buffer *buffer, struct game_state *game)
 {
