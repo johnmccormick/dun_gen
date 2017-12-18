@@ -32,6 +32,9 @@ struct entity
 	struct level_position position;
 	struct vector2 velocity;
 
+	bool collides;
+	bool pushable;
+
 	uint32_t colour;
 	bool alpha;
 };

@@ -83,9 +83,9 @@ float dot_product (struct vector2 a, struct vector2 b)
 #define clamp_max(value, max) (value > max ? max : value)
 #define clamp_min(value, min) (value < min ? min : value)
 
-float clamp_min_max(float value, float min, float max)
+int clamp_i_min_max(int value, int min, int max)
 {
-	float result = value;
+	int result = value;
 
 	if (value < min)
 	{
@@ -99,17 +99,17 @@ float clamp_min_max(float value, float min, float max)
 	return result;
 }
 
-float abs_clamp_min_max(float value, float min_max)
+float clamp_f_min_max(float value, float min, float max)
 {
 	float result = value;
 
-	if (value < -min_max)
+	if (value < min)
 	{
-		result = -min_max;
+		result = min;
 	}
-	else if (value > min_max)
+	else if (value > max)
 	{
-		result = min_max;
+		result = max;
 	}
 
 	return result;
