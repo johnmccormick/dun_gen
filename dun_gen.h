@@ -22,6 +22,7 @@ enum entity_type
 	entity_player,
 	entity_enemy,
 	entity_block,
+	entity_bullet,
 };
 
 struct entity
@@ -33,10 +34,8 @@ struct entity
 	struct vector2 velocity;
 
 	bool collides;
-	bool pushable;
 
 	uint32_t colour;
-	bool alpha;
 };
 
 // struct entity_node
@@ -69,7 +68,7 @@ struct game_state
 
 	int player_width;
 	int player_height;
-	int base_player_velocity;
+	int base_player_acceleration;
 
 	float level_transition_time;
 

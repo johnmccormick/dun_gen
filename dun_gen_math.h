@@ -114,3 +114,18 @@ float clamp_f_min_max(float value, float min, float max)
 
 	return result;
 }
+
+struct vector2 normalise_vector2 (struct vector2 vector)
+{
+	struct vector2 result;
+	
+	float length_squared = dot_product(vector, vector);
+
+	float inverse_length = 1 / sqrt(length_squared);
+
+	result.x = vector.x * inverse_length;
+	result.y = vector.y * inverse_length;
+
+	return result;
+}
+

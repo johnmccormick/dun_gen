@@ -16,7 +16,7 @@ void set_screen_size(SDL_Window *window, struct pixel_buffer *main_buffer, int r
         SDL_SetWindowSize(window, main_buffer->client_width * render_ratio, main_buffer->client_height * render_ratio);
         SDL_SetWindowPosition(window, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED);
     }
-    if (render_ratio == 4)
+    if (render_ratio == max_ratio)
         SDL_SetWindowFullscreen(window, SDL_WINDOW_FULLSCREEN_DESKTOP);
 }
 
@@ -33,8 +33,8 @@ int main ()
     int win_width, win_height;
     if (mode.w <= 1920 && mode.w >= 1280 && mode.h <= 1080 && mode.h >= 800)
     {
-        win_width = mode.w / 4;
-        win_height = mode.h / 4;
+        win_width = mode.w / 2;
+        win_height = mode.h / 2;
     }
     else
     {
@@ -128,6 +128,40 @@ int main ()
                 {
                     sdl_input.mouse_x = event.motion.x / render_ratio;
                     sdl_input.mouse_y = event.motion.y / render_ratio;
+                } break;
+
+                case SDL_MOUSEBUTTONDOWN:
+                {
+                    switch(event.button.button)
+                    {
+                        case SDL_BUTTON_LEFT:
+                        {
+                            sdl_input.buttons.mouse_left = true;
+                        } break;
+
+                        case SDL_BUTTON_RIGHT:
+                        {
+                            sdl_input.buttons.mouse_right = true;
+                        } break;
+                    }
+
+                } break;
+
+                case SDL_MOUSEBUTTONUP:
+                {
+                    switch(event.button.button)
+                    {
+                        case SDL_BUTTON_LEFT:
+                        {
+                            sdl_input.buttons.mouse_left = false;
+                        } break;
+
+                        case SDL_BUTTON_RIGHT:
+                        {
+                            sdl_input.buttons.mouse_right = false;
+                        } break;
+                    }
+
                 } break;
 
                 case SDL_KEYDOWN: 
