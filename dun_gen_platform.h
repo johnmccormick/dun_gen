@@ -1,4 +1,5 @@
 #include <stdbool.h>
+#include <assert.h>
 
 #define array_count(array) (sizeof(array) / sizeof(array[0]))
 

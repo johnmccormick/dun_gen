@@ -1,4 +1,4 @@
-uint32_t get_tile_colour (int tile_value, float level_render_gradient, uint32_t *pixel)
+uint32_t get_tile_colour(int tile_value, float level_render_gradient, uint32_t *pixel)
 {
 	uint32_t colour = 0;
 
@@ -16,7 +16,7 @@ uint32_t get_tile_colour (int tile_value, float level_render_gradient, uint32_t 
 	return colour;
 }
 
-struct tile_offset calculate_next_offsets (struct level current_level)
+struct tile_offset calculate_next_offsets(struct level current_level)
 {
 	struct tile_offset level_offset = {0, 0}; 
 
@@ -44,7 +44,7 @@ struct tile_offset calculate_next_offsets (struct level current_level)
 	return level_offset;
 }
 
-struct level *generate_level (struct memory_arena *world_memory, struct level *prev_level)
+struct level *generate_level(struct memory_arena *world_memory, struct level *prev_level)
 {
 	struct level *new_level = push_struct(world_memory, sizeof(struct level));
 
@@ -200,13 +200,13 @@ struct level_position reoffset_tile_position(struct game_state *game, struct lev
 	return new_position;
 }
 
-int get_position_tile_value (struct level current_level, struct level_position position)
+int get_position_tile_value(struct level current_level, struct level_position position)
 {
 	int value = *(current_level.map + position.tile_x + (position.tile_y * current_level.width));
 	return value;
 }
 
-int get_tile_value (struct level current_level, int tile_x, int tile_y)
+int get_tile_value(struct level current_level, int tile_x, int tile_y)
 {
 	int value = *(current_level.map + tile_x + (tile_y * current_level.width));
 	return value;

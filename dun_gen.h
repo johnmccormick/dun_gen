@@ -29,13 +29,20 @@ enum entity_type
 struct entity
 {
 	enum entity_type type;
+
 	int pixel_width;
 	int pixel_height;
+
+	struct level *current_level;
 	struct level_position position;
 	struct vector2 velocity;
 
-	bool collidable;
 	int parent_index;
+	bool collidable;
+
+	//TODO: Make union for entity specifics
+	int distance_sq_remaining;
+	float bullet_refresh_remaining;
 
 	uint32_t colour;
 };
@@ -58,7 +65,11 @@ struct game_state
 	//TEMP: Transition to entity nodes
 	int entity_count;
 	struct entity entities[65536];
+
 	int player_entity_index[MAX_PLAYERS];
+
+	int vacant_entity_count;
+	int vacant_entities[2048];
 
 	int tile_size;
 
