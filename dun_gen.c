@@ -89,7 +89,7 @@ bool test_rect_collision (float x_diff, float delta_x, float top_y, float bottom
 	return result;
 }
 
-void test_entity_collision (struct game_state *game, struct entity player_entity, struct vector2 player_position_delta, struct entity test_entity, struct vector2 *reflection_normal, float *t_min)
+void test_entity_collision (struct game_state *game, struct entity player_entity, struct vector2 entity_position_delta, struct entity test_entity, struct vector2 *reflection_normal, float *t_min)
 {
 	int tile_to_player_x = test_entity.position.tile_x - player_entity.position.tile_x;
 	int tile_to_player_y = test_entity.position.tile_y - player_entity.position.tile_y;
@@ -107,28 +107,28 @@ void test_entity_collision (struct game_state *game, struct entity player_entity
 	float bottom_right_dy = (tile_to_player_y * game->tile_size) + pixel_to_player_y + half_diameter_height;
 
 	// Test left wall
-	if (test_rect_collision(top_left_dx, player_position_delta.x, top_left_dy, bottom_right_dy, player_position_delta.y, t_min))
+	if (test_rect_collision(top_left_dx, entity_position_delta.x, top_left_dy, bottom_right_dy, entity_position_delta.y, t_min))
 	{
 		reflection_normal->x = -1;
 		reflection_normal->y = 0;
 	}
 
 	// Test right wall
-	if (test_rect_collision(bottom_right_dx, player_position_delta.x, top_left_dy, bottom_right_dy, player_position_delta.y, t_min))
+	if (test_rect_collision(bottom_right_dx, entity_position_delta.x, top_left_dy, bottom_right_dy, entity_position_delta.y, t_min))
 	{	
 		reflection_normal->x = 1;
 		reflection_normal->y = 0;
 	}
 
 	// Test top wall
-	if (test_rect_collision(top_left_dy, player_position_delta.y, top_left_dx, bottom_right_dx, player_position_delta.x, t_min))
+	if (test_rect_collision(top_left_dy, entity_position_delta.y, top_left_dx, bottom_right_dx, entity_position_delta.x, t_min))
 	{
 		reflection_normal->x = 0;
 		reflection_normal->y = -1;
 	}
 
 	// Test right wall
-	if (test_rect_collision(bottom_right_dy, player_position_delta.y, top_left_dx, bottom_right_dx, player_position_delta.x, t_min))
+	if (test_rect_collision(bottom_right_dy, entity_position_delta.y, top_left_dx, bottom_right_dx, entity_position_delta.x, t_min))
 	{
 		reflection_normal->x = 0;
 		reflection_normal->y = 1;
@@ -153,11 +153,14 @@ void change_entity_level(struct game_state *game, struct memory_arena *world_mem
 
 						if (first_block->count == 0)
 						{
-							struct index_block *next_block = first_block->next;
-							*first_block = *next_block;
+							if (first_block->next)
+							{	
+								struct index_block *next_block = first_block->next;
+								*first_block = *next_block;
 
-							next_block->next = game->first_free_block;
-							game->first_free_block = next_block;
+								next_block->next = game->first_free_block;
+								game->first_free_block = next_block;
+							}
 						}
 
 						entity_found = true;
@@ -191,7 +194,7 @@ void change_entity_level(struct game_state *game, struct memory_arena *world_mem
 	}
 }
 
-int create_entity(struct game_state *game, struct memory_arena *world_memory, struct level *target_level, enum entity_type type, struct level_position position, int width, int height, bool collides, uint32_t colour)
+int create_entity(struct game_state *game, struct memory_arena *world_memory, struct level *target_level, enum entity_type type, int width, int height, bool collidable, uint32_t colour)
 {
 	//struct entity_node *new_entity_node = push_struct(world_memory, sizeof(struct entity_node));
 
@@ -200,8 +203,8 @@ int create_entity(struct game_state *game, struct memory_arena *world_memory, st
 	new_entity->type = type;
 	new_entity->pixel_width = width;
 	new_entity->pixel_height = height;
-	new_entity->position = position;
-	new_entity->collides = collides;
+	new_entity->collidable = collidable;
+	new_entity->parent_index = 0;
 	new_entity->colour = colour;
 
 	int index = game->entity_count++;
@@ -213,6 +216,15 @@ int create_entity(struct game_state *game, struct memory_arena *world_memory, st
 
 int add_player (struct game_state *game, struct memory_arena *world_memory, struct level *target_level)
 {
+	int width = game->player_width;
+	int height = game->player_height;
+
+	bool collidable = true;
+
+	uint32_t colour = 0x000000ff;
+
+	int index = create_entity(game, world_memory, target_level, entity_player, width, height, collidable, colour);
+
 	struct level_position position;
 
 	position.tile_x = game->current_level->width / 2;
@@ -221,35 +233,17 @@ int add_player (struct game_state *game, struct memory_arena *world_memory, stru
 	position.pixel_x = game->tile_size / 2;
 	position.pixel_y = game->tile_size / 2;
 
-	int width = game->player_width;
-	int height = game->player_height;
-
-	bool collides = true;
-
-	uint32_t colour = 0x000000ff;
-
-	int index = create_entity(game, world_memory, target_level, entity_player, position, width, height, collides, colour);
+	game->entities[index].position = position;
 
 	return index;
 }
 
 int add_block (struct game_state *game, struct memory_arena *world_memory, struct level *target_level)
 {
-	struct level_position position;
-
-	position.tile_x = (rand() % (target_level->width - 2)) + 1;
-	position.tile_y = (rand() % (target_level->height - 2)) + 1;
-
-	// position.pixel_x = game->tile_size*((rand() % 10) + 1) / 10.0f;
-	// position.pixel_y = game->tile_size*((rand() % 10) + 1) / 10.0f;
-
-	position.pixel_x = game->tile_size*0.5f;
-	position.pixel_y = game->tile_size*0.5f;
-
 	int width = game->tile_size;
 	int height = game->tile_size;
 
-	bool collides = true;
+	bool collidable = true;
 
 	uint8_t r, g, b;
 
@@ -263,25 +257,37 @@ int add_block (struct game_state *game, struct memory_arena *world_memory, struc
 
 	uint32_t colour = create_colour_argb(1.0, r, g, b, 0);
 
-	int index = create_entity(game, world_memory, target_level, entity_block, position, width, height, collides, colour);
+	int index = create_entity(game, world_memory, target_level, entity_block, width, height, collidable, colour);
+
+	struct level_position position;
+
+	position.tile_x = (rand() % (target_level->width - 2)) + 1;
+	position.tile_y = (rand() % (target_level->height - 2)) + 1;
+
+	position.pixel_x = game->tile_size*0.5f;
+	position.pixel_y = game->tile_size*0.5f;
+	
+	game->entities[index].position = position;
 
 	return index;
 }
 
-int add_bullet (struct game_state *game, struct memory_arena *world_memory, struct level *target_level, struct entity player)
+int add_bullet (struct game_state *game, struct memory_arena *world_memory, struct level *target_level, int parent_index)
 {
-	struct level_position position = player.position;
+	int width = 2;
+	int height = 2;
 
-	int width = 1;
-	int height = 1;
-
-	bool collides = false;
+	bool collidable = false;
 	// Different collision types?
 	// Bullets can hit exact point
 
-	uint32_t colour = player.colour;
+	struct entity parent = game->entities[parent_index];
+	uint32_t colour = parent.colour;
 
-	int index = create_entity(game, world_memory, target_level, entity_bullet, position, width, height, collides, colour);
+	int index = create_entity(game, world_memory, target_level, entity_bullet, width, height, collidable, colour);
+
+	game->entities[index].parent_index = parent_index;
+	game->entities[index].position = parent.position;
 
 	return index;
 }
@@ -298,7 +304,7 @@ struct entity *get_entity (struct game_state *game, int entity_index)
 // This should eventually take entity index for moving
 // an entity between levels, and game->current_level
 // revolves only around player 0 (for the time being)
-void become_next_level(struct game_state *game, int player_index)
+void become_next_level(struct game_state *game, int player_entity_index)
 {
 	if (game->current_level->next_level->next_level)
 	{
@@ -320,7 +326,6 @@ void become_next_level(struct game_state *game, int player_index)
 		add_block(game, &game->world_memory, game->current_level->next_level);
 	}
 
-	int player_entity_index = game->player_entity_index[player_index];
 	struct entity *player = get_entity(game, player_entity_index);
 
 	player->position.tile_x = game->current_level->entrance.x;
@@ -334,12 +339,11 @@ void become_next_level(struct game_state *game, int player_index)
 //	game->camera_position = get_level_center_position(game->current_level->width, game->current_level->height);
 }
 
-void become_prev_level(struct game_state *game, int player_index)
+void become_prev_level(struct game_state *game, int player_entity_index)
 {
 	// This is obviously broken for more than 1 player now
 	game->current_level = game->current_level->prev_level;
 
-	int player_entity_index = game->player_entity_index[player_index];
 	struct entity *player = get_entity(game, player_entity_index);
 
 	player->position.tile_x = game->current_level->exit.x;
@@ -351,6 +355,16 @@ void become_prev_level(struct game_state *game, int player_index)
 	--game->prev_render_depth;
 
 //	game->camera_position = get_level_center_position(game->current_level->width, game->current_level->height);
+}
+
+struct vector2 get_vector2_from_position (struct game_state *game, struct level_position position)
+{
+	struct vector2 result;
+
+	result.x = (position.tile_x * game->tile_size) + position.pixel_x;
+	result.y = (position.tile_y * game->tile_size) + position.pixel_y;
+
+	return result;
 }
 
 void main_game_loop (struct pixel_buffer *buffer, struct platform_memory memory, struct input_events input)
@@ -372,6 +386,9 @@ void main_game_loop (struct pixel_buffer *buffer, struct platform_memory memory,
 		game->tile_size = 16;
 
 		game->level_transition_time = 5000*input.frame_t;
+
+		// Make entity index 0 a null entity
+		create_entity(game, &game->world_memory, 0, entity_null, 0, 0, false, 0);
 
 		// Center player
 		game->player_width = 12;
@@ -397,6 +414,14 @@ void main_game_loop (struct pixel_buffer *buffer, struct platform_memory memory,
 		game->initialised = true;
 	}
 
+	if (input.buttons.keyboard_space)
+	{
+		game->paused = !game->paused;
+	}
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
 	struct level current_level = *game->current_level;
 
 	// For loop should iterate over MAX_PLAYERS indexes
@@ -404,11 +429,7 @@ void main_game_loop (struct pixel_buffer *buffer, struct platform_memory memory,
 	int player_index = 0;
 
 	struct entity *player_entity = get_entity(game, game->player_entity_index[player_index]);
-
-	if (input.buttons.keyboard_space)
-	{
-		game->paused = !game->paused;
-	}
+	int player_entity_index = game->player_entity_index[player_index];
 
 	if (!game->paused)
 	{
@@ -446,154 +467,200 @@ void main_game_loop (struct pixel_buffer *buffer, struct platform_memory memory,
 		}
 		if (input.buttons.mouse_left)
 		{
-			add_bullet(game, &game->world_memory, game->current_level, *player_entity);
+			int bullet_index = add_bullet(game, &game->world_memory, game->current_level, player_entity_index);
+			struct vector2 mouse;
+			mouse.x = input.mouse_x;
+			mouse.y = input.mouse_y;
+			
+			struct vector2 player;
+			player.x = buffer->client_width*0.5f;
+			player.y = buffer->client_height*0.5f;
+
+			struct vector2 bullet_vector = subtract_vector2(mouse, player);
+			bullet_vector = normalise_vector2(bullet_vector);
+
+			game->entities[bullet_index].velocity.x = bullet_vector.x * 200;
+			game->entities[bullet_index].velocity.y = bullet_vector.y * 200;
 		}
 
-		struct level_position old_player_position = player_entity->position;
-		struct vector2 player_position_delta = {0, 0};
-
-		// Friction
-		new_player_acceleration_x += -12*player_entity->velocity.x;
-		new_player_acceleration_y += -12*player_entity->velocity.y;
-
-		if (fabs(player_entity->velocity.x) < 0.1)
+		for (int entity_index = 0; entity_index < game->entity_count; ++entity_index)
 		{
-			player_entity->velocity.x = 0;	
-		}
-		if (fabs(player_entity->velocity.y) < 0.1)
-		{
-			player_entity->velocity.y = 0;	
-		}
+			struct entity *movable_entity = &game->entities[entity_index];
 
-		// p = at^2 + vt + p
-		player_position_delta.x = (1/2*new_player_acceleration_x*(pow(input.frame_t, 2))) + player_entity->velocity.x*input.frame_t;
-		player_position_delta.y = (1/2*new_player_acceleration_y*(pow(input.frame_t, 2))) + player_entity->velocity.y*input.frame_t;
-
-		// v = 2at + v.  // a = a
-		player_entity->velocity.x = (new_player_acceleration_x * input.frame_t) + player_entity->velocity.x;
-		player_entity->velocity.y = (new_player_acceleration_y * input.frame_t) + player_entity->velocity.y;
-
-		// Prepare a new player position based off of velocity + acceleration for collisions
-		struct level_position new_player_position = old_player_position;
-		new_player_position.pixel_x += player_position_delta.x;
-		new_player_position.pixel_y += player_position_delta.y;
-
-		// Loop over tiles in collision region
-		// and get wall reflection (if any)
-
-		// Obtain tiles intersecting player movement vector
-
-		// TODO: Replace with array of collision tiles near player and 
-		// give same collision treatment as entities
-		
-		int min_tile_x = minimum_int(new_player_position.tile_x, old_player_position.tile_x);
-		int min_tile_y = minimum_int(new_player_position.tile_y, old_player_position.tile_y);
-		int max_tile_x = maximum_int(new_player_position.tile_x, old_player_position.tile_x);
-		int max_tile_y = maximum_int(new_player_position.tile_y, old_player_position.tile_y);
-
-		// Account for size of player width/height compared to tile size,
-		// and add maximum padding (usually +- 1, as player is smaller 
-		// than level tile).
-
-		// To stop out of bounds collisions
-		min_tile_x = clamp_min(min_tile_x - 1, 0);
-		min_tile_y = clamp_min(min_tile_y - 1, 0);
-		max_tile_x = clamp_max(max_tile_x + 1, current_level.width - 1);
-		max_tile_y = clamp_max(max_tile_y + 1, current_level.height - 1);
-
-		struct vector2 reflection_normal = {0, 0};
-
-		float t_remaining = 1.0f;
-		int loop_count = 0;
-
-		while (t_remaining > 0 && loop_count < 5)
-		{
-			float t_min = 1.0f;
-
-			// Test level tiles
-			for (int tile_y = min_tile_y; tile_y <= max_tile_y; ++tile_y)
+			if (movable_entity->type == entity_player || movable_entity->type == entity_bullet)
 			{
-				for (int tile_x = min_tile_x; tile_x <= max_tile_x; ++tile_x)
+				struct level_position old_entity_position = movable_entity->position;
+				struct vector2 entity_position_delta = {0, 0};
+
+				float entity_acceleration_x = 0;
+				float entity_acceleration_y = 0;
+
+				if (movable_entity->type == entity_player)
 				{
-					struct entity fake_tile_entity;
+					// Friction
+					entity_acceleration_x = new_player_acceleration_x + (-12*movable_entity->velocity.x);
+					entity_acceleration_y = new_player_acceleration_y + (-12*movable_entity->velocity.y);
 
-					fake_tile_entity.pixel_width = game->tile_size;
-					fake_tile_entity.pixel_height = game->tile_size;
-					
-					fake_tile_entity.position.tile_x = tile_x;
-					fake_tile_entity.position.tile_y = tile_y;
-
-					fake_tile_entity.position.pixel_x = (float)game->tile_size*0.5f;
-					fake_tile_entity.position.pixel_y = (float)game->tile_size*0.5f;
-
-					fake_tile_entity.collides = is_collision_tile(game, current_level, tile_x, tile_y);
-
-					if (fake_tile_entity.collides)
+					if (fabs(movable_entity->velocity.x) < 0.1)
 					{
-						test_entity_collision(game, *player_entity, player_position_delta, fake_tile_entity, &reflection_normal, &t_min);
+						movable_entity->velocity.x = 0;	
+					}
+					if (fabs(movable_entity->velocity.y) < 0.1)
+					{
+						movable_entity->velocity.y = 0;	
 					}
 				}
-			}
 
-			// Test entities within level
-			// TODO: Test entities on next entrance / prev exit
-			int player_entity_index = game->player_entity_index[player_index];
+				// p = at^2 + vt + p
+				entity_position_delta.x = (1/2*entity_acceleration_x*(pow(input.frame_t, 2))) + movable_entity->velocity.x*input.frame_t;
+				entity_position_delta.y = (1/2*entity_acceleration_y*(pow(input.frame_t, 2))) + movable_entity->velocity.y*input.frame_t;
 
-			struct index_block *first_block = &current_level.first_block;
-			for (struct index_block *block = first_block; block; block = block->next)
-			{
-				for (int index = 0; index < block->count; ++index)
+				// v = 2at + v.  // a = a
+				movable_entity->velocity.x = (entity_acceleration_x * input.frame_t) + movable_entity->velocity.x;
+				movable_entity->velocity.y = (entity_acceleration_y * input.frame_t) + movable_entity->velocity.y;
+
+				// Prepare a new player position based off of velocity + acceleration for collisions
+				struct level_position new_player_position = old_entity_position;
+				new_player_position.pixel_x += entity_position_delta.x;
+				new_player_position.pixel_y += entity_position_delta.y;
+
+				// Loop over tiles in collision region
+				// and get wall reflection (if any)
+
+				// Obtain tiles intersecting player movement vector
+
+				// TODO: Replace with array of collision tiles near player and 
+				// give same collision treatment as entities
+				
+				int min_tile_x = minimum_int(new_player_position.tile_x, old_entity_position.tile_x);
+				int min_tile_y = minimum_int(new_player_position.tile_y, old_entity_position.tile_y);
+				int max_tile_x = maximum_int(new_player_position.tile_x, old_entity_position.tile_x);
+				int max_tile_y = maximum_int(new_player_position.tile_y, old_entity_position.tile_y);
+
+				// Account for size of player width/height compared to tile size,
+				// and add maximum padding (usually +- 1, as player is smaller 
+				// than level tile).
+
+				// To stop out of bounds collisions
+				min_tile_x = clamp_min(min_tile_x - 1, 0);
+				min_tile_y = clamp_min(min_tile_y - 1, 0);
+				max_tile_x = clamp_max(max_tile_x + 1, current_level.width - 1);
+				max_tile_y = clamp_max(max_tile_y + 1, current_level.height - 1);
+
+				struct vector2 reflection_normal = {0, 0};
+
+				float t_remaining = 1.0f;
+				int loop_count = 0;
+
+				while (t_remaining > 0 || loop_count < 5)
 				{
-					int entity_index = block->index[index];
+					float t_min = 1.0f;
 
-					if (player_entity_index != entity_index)
+					// Test level tiles
+					for (int tile_y = min_tile_y; tile_y <= max_tile_y; ++tile_y)
 					{
-						struct entity test_entity = game->entities[entity_index];
-
-						if (test_entity.collides)
+						for (int tile_x = min_tile_x; tile_x <= max_tile_x; ++tile_x)
 						{
-							test_entity_collision(game, *player_entity, player_position_delta, test_entity, &reflection_normal, &t_min);
+							struct entity fake_tile_entity;
+
+							fake_tile_entity.pixel_width = game->tile_size;
+							fake_tile_entity.pixel_height = game->tile_size;
+							
+							fake_tile_entity.position.tile_x = tile_x;
+							fake_tile_entity.position.tile_y = tile_y;
+
+							fake_tile_entity.position.pixel_x = (float)game->tile_size*0.5f;
+							fake_tile_entity.position.pixel_y = (float)game->tile_size*0.5f;
+
+							fake_tile_entity.collidable = is_collision_tile(game, current_level, tile_x, tile_y);
+
+							if (fake_tile_entity.collidable)
+							{
+								test_entity_collision(game, *movable_entity, entity_position_delta, fake_tile_entity, &reflection_normal, &t_min);
+							}
 						}
 					}
+
+					// Test entities within level
+					// TODO: Test entities on next entrance / prev exit
+					struct index_block *first_block = &current_level.first_block;
+					for (struct index_block *block = first_block; block; block = block->next)
+					{
+						for (int index = 0; index < block->count; ++index)
+						{
+							int collidable_entity_index = block->index[index];
+
+							if ((collidable_entity_index != entity_index) 
+								&& (collidable_entity_index != movable_entity->parent_index))
+							{
+								struct entity test_entity = game->entities[collidable_entity_index];
+
+								if (test_entity.collidable)
+								{
+									test_entity_collision(game, *movable_entity, entity_position_delta, test_entity, &reflection_normal, &t_min);
+								}
+							}
+						}
+					}
+
+					// Test tilemap
+
+					movable_entity->position.pixel_x += (entity_position_delta.x * t_min);
+					movable_entity->position.pixel_y += (entity_position_delta.y * t_min);
+
+					// Reflection angle
+					float reflection_perp_angle = 1.0f;
+					if (movable_entity->type == entity_bullet)
+					{
+						reflection_perp_angle = 2.0f;
+					}
+
+					movable_entity->velocity.x -= (reflection_perp_angle*dot_product(movable_entity->velocity, reflection_normal)*reflection_normal.x);
+					movable_entity->velocity.y -= (reflection_perp_angle*dot_product(movable_entity->velocity, reflection_normal)*reflection_normal.y);
+
+					entity_position_delta.x -= (reflection_perp_angle*dot_product(entity_position_delta, reflection_normal)*reflection_normal.x);
+					entity_position_delta.y -= (reflection_perp_angle*dot_product(entity_position_delta, reflection_normal)*reflection_normal.y);
+
+					t_remaining -= t_remaining * t_min;
+
+					entity_position_delta.x *= t_remaining;
+					entity_position_delta.y *= t_remaining;
+
+					++loop_count;
+				}
+
+				movable_entity->position = reoffset_tile_position(game, movable_entity->position);
+
+				bool out_of_bounds = is_out_of_bounds_position(current_level, movable_entity->position);
+
+				// Level change conditions
+				int old_tile_value = get_position_tile_value(current_level, old_entity_position);
+				if (old_tile_value == 3 && out_of_bounds)
+				{
+					if (entity_index == game->player_entity_index[0])
+					{
+						become_prev_level(game, entity_index);
+					}
+					
+					// Switch its level but not *current_level
+				}
+				else if (old_tile_value == 4 && out_of_bounds)
+				{
+					if (entity_index == game->player_entity_index[0])
+					{
+						become_next_level(game, entity_index);
+					}
+
+					// Switch its level but not *current_level
 				}
 			}
-
-			// Test tilemap
-
-			player_entity->position.pixel_x += (player_position_delta.x * t_min);
-			player_entity->position.pixel_y += (player_position_delta.y * t_min);
-
-			player_entity->velocity.x -= (1.0f*dot_product(player_entity->velocity, reflection_normal)*reflection_normal.x);
-			player_entity->velocity.y -= (1.0f*dot_product(player_entity->velocity, reflection_normal)*reflection_normal.y);
-
-			player_position_delta.x -= (1.0f*dot_product(player_position_delta, reflection_normal)*reflection_normal.x);
-			player_position_delta.y -= (1.0f*dot_product(player_position_delta, reflection_normal)*reflection_normal.y);
-
-			t_remaining -= t_remaining * t_min;
-
-			player_position_delta.x *= t_remaining;
-			player_position_delta.y *= t_remaining;
-
-			++loop_count;
 		}
 
-		player_entity->position = reoffset_tile_position(game, player_entity->position);
 
-		bool out_of_bounds = is_out_of_bounds_position(current_level, player_entity->position);
-
-		// Level change conditions
-		int old_tile_value = get_position_tile_value(current_level, old_player_position);
-		if (old_tile_value == 3 && out_of_bounds)
-		{
-			become_prev_level(game, player_index);
-		}
-		else if (old_tile_value == 4 && out_of_bounds)
-		{
-			become_next_level(game, player_index);
-		}
+//////////////////////////////////////////////////////////////////////////////////////////////////////
 
 		// Center camera on player_entity
-		game->camera_position = player_entity->position;
+		game->camera_position = game->entities[game->player_entity_index[0]].position;
 
 		// Process render transitions
 		// Active level always incremented (until at maximum render transition);

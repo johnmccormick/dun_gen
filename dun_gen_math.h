@@ -121,11 +121,20 @@ struct vector2 normalise_vector2 (struct vector2 vector)
 	
 	float length_squared = dot_product(vector, vector);
 
-	float inverse_length = 1 / sqrt(length_squared);
+	float normalised_length = 1 / sqrt(length_squared);
 
-	result.x = vector.x * inverse_length;
-	result.y = vector.y * inverse_length;
+	result.x = vector.x * normalised_length;
+	result.y = vector.y * normalised_length;
 
 	return result;
 }
 
+struct vector2 subtract_vector2 (struct vector2 a, struct vector2 b)
+{
+	struct vector2 result;
+
+	result.x = a.x - b.x;
+	result.y = a.y - b.y;
+
+	return result;
+}

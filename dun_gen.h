@@ -19,6 +19,7 @@ void *push_struct (struct memory_arena *game_storage, int struct_size);
 
 enum entity_type
 {
+	entity_null,
 	entity_player,
 	entity_enemy,
 	entity_block,
@@ -33,7 +34,8 @@ struct entity
 	struct level_position position;
 	struct vector2 velocity;
 
-	bool collides;
+	bool collidable;
+	int parent_index;
 
 	uint32_t colour;
 };
