@@ -40,6 +40,9 @@ struct entity
 	int parent_index;
 	bool collidable;
 
+	int max_health;
+	int health;
+
 	//TODO: Make union for entity specifics
 	int distance_sq_remaining;
 	float bullet_refresh_remaining;
