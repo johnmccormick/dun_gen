@@ -496,7 +496,7 @@ void main_game_loop(struct pixel_buffer *buffer, struct platform_memory memory, 
 			struct vector2 mouse;
 			mouse.x = input.mouse_x;
 			mouse.y = input.mouse_y;
-			
+
 			struct vector2 player;
 			player.x = buffer->client_width*0.5f;
 			player.y = buffer->client_height*0.5f;
@@ -562,7 +562,6 @@ void main_game_loop(struct pixel_buffer *buffer, struct platform_memory memory, 
 
 				// TODO: Replace with array of collision tiles near player and 
 				// give same collision treatment as entities
-
 				int min_tile_x = minimum_int(new_player_position.tile_x, old_entity_position.tile_x);
 				int min_tile_y = minimum_int(new_player_position.tile_y, old_entity_position.tile_y);
 				int max_tile_x = maximum_int(new_player_position.tile_x, old_entity_position.tile_x);
@@ -767,7 +766,6 @@ void main_game_loop(struct pixel_buffer *buffer, struct platform_memory memory, 
 							}
 						}
 					}
-
 					// Test tilemap
 					movable_entity->position.pixel_x += (entity_position_delta.x * t_min);
 					movable_entity->position.pixel_y += (entity_position_delta.y * t_min);
@@ -807,10 +805,6 @@ void main_game_loop(struct pixel_buffer *buffer, struct platform_memory memory, 
 						remove_entity(game, entity_index);
 					}
 				}
-
-
-				//int old_tile_value = get_position_tile_value(*movable_entity->current_level, old_entity_position);
-				//bool out_of_bounds = is_out_of_bounds_position(*movable_entity->current_level, new_player_position);
 
 				// Level change conditions
 				if (old_tile_value == 3 && out_of_bounds && movable_entity->type != entity_null)
@@ -950,7 +944,7 @@ void main_game_loop(struct pixel_buffer *buffer, struct platform_memory memory, 
 			}
 			row += buffer->texture_pitch;
 		}
-		
+
 		// Render levels/entities
 		// Converts player map coordinate to centered position in terms of pixels
 		struct level_position camera_position = game->camera_position;
@@ -1089,12 +1083,12 @@ void main_game_loop(struct pixel_buffer *buffer, struct platform_memory memory, 
 							{
 								uint32_t colour = get_tile_colour(tile_value, level_render_gradient, pixel);
 
-								if (y == min_y || x == min_x)
+								if (y == min_y || x == min_x || y == max_y - 1 || x == max_x - 1)
 								{
 									if (tile_value != 1)
-										colour = create_colour_32bit(level_render_gradient, 0x00bbbbbb, pixel);
+										colour = create_colour_32bit(level_render_gradient, 0x00eeeeee, pixel);
 									if (tile_value == 1)
-										colour = create_colour_32bit(level_render_gradient, 0x00666666, pixel);
+										colour = create_colour_32bit(level_render_gradient, 0x00333333, pixel);
 								}
 								*pixel++ = colour;
 							}
@@ -1154,12 +1148,17 @@ void main_game_loop(struct pixel_buffer *buffer, struct platform_memory memory, 
 						+ (input.mouse_x * buffer->bytes_per_pixel);
 
 		uint mouse_width = 2;
+		uint mouse_height = 2;
 		if (input.mouse_x == buffer->client_width - 1)
 		{
 			mouse_width = 1;
 		}
+		if (input.mouse_y == buffer->client_height - 1)
+		{
+			mouse_height = 1;
+		}
 
-		for (int y = 0; y < 2; ++y)
+		for (int y = 0; y < mouse_height; ++y)
 		{
 			uint32_t *pixel = (uint32_t *)mouse_pointer;
 			for (int x = 0; x < mouse_width; ++x)
