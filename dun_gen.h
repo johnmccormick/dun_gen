@@ -4,6 +4,7 @@
 #include <sys/time.h>
 
 #include "dun_gen_platform.h"
+#include "dun_gen_tile.h"
 #include "dun_gen_math.h"
 
 struct memory_arena
@@ -15,14 +16,14 @@ struct memory_arena
 
 void *push_struct (struct memory_arena *game_storage, int struct_size);
 
-#include "dun_gen_tile.h"
-
 struct move_spec
 {
-	float delta_t;
 	struct vector2 acceleration;
 	float drag;
 };
+
+//TODO: Projectile spec
+// Damage, bounce, etc. 
 
 enum entity_type
 {
@@ -42,16 +43,16 @@ struct entity
 
 	struct level *current_level;
 	struct level_position position;
+	
 	struct vector2 velocity;
 
 	int parent_index;
-
 	bool collidable;
 
+	//TODO: Health specific struct
+	// (Invincible/take extra dmg?)
 	int max_health;
 	int health;
-
-	bool health_bar;
 
 	//TODO: Make union for entity specifics
 	int distance_remaining;
@@ -69,24 +70,22 @@ struct game_state
 
 	struct memory_arena world_memory;
 
+	int player_entity_index[MAX_PLAYERS];
+
 	//TEMP: Transition to entity nodes
 	int entity_count;
 	struct entity entities[65536];
 
-	int player_entity_index[MAX_PLAYERS];
-
 	int vacant_entity_count;
-	int vacant_entities[2048];
+	int vacant_entities[4096];
 
 	int tile_size;
+	float level_transition_time;
 
-	struct level *first_level;
-	struct level *current_level;
-	struct index_block *first_free_block;	
+	struct index_block *first_free_level_index_block;	
 
 	struct level_position camera_position;
-
-	float level_transition_time;
+	struct level *camera_level;
 
 	int next_render_depth;
 	int prev_render_depth;

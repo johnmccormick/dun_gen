@@ -13,6 +13,14 @@ struct tile_offset
 	int y;
 };
 
+enum tile_type
+{
+	tile_floor,
+	tile_entrance,
+	tile_exit,
+	tile_out_of_bounds,
+};
+
 struct index_block
 {
 	uint count;

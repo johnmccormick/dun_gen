@@ -168,8 +168,8 @@ void change_entity_level(struct game_state *game, uint entity_index, struct leve
 								struct index_block *next_block = first_block->next;
 								*first_block = *next_block;
 
-								next_block->next = game->first_free_block;
-								game->first_free_block = next_block;
+								next_block->next = game->first_free_level_index_block;
+								game->first_free_level_index_block = next_block;
 							}
 						}
 
@@ -184,11 +184,11 @@ void change_entity_level(struct game_state *game, uint entity_index, struct leve
 			struct index_block *block = &new_level->first_block;
 			if (block->count == array_count(block->index))
 			{
-				struct index_block *old_block = game->first_free_block;
+				struct index_block *old_block = game->first_free_level_index_block;
 
 				if (old_block)
 				{
-					game->first_free_block = old_block->next;
+					game->first_free_level_index_block = old_block->next;
 				}
 				else
 				{
@@ -282,8 +282,8 @@ int add_player(struct game_state *game, struct level *target_level)
 
 	struct level_position position;
 
-	position.tile_x = game->current_level->width / 2;
-	position.tile_y = game->current_level->height / 2;
+	position.tile_x = game->camera_level->width / 2;
+	position.tile_y = game->camera_level->height / 2;
 
 	position.pixel_x = game->tile_size / 2;
 	position.pixel_y = game->tile_size / 2;
@@ -397,66 +397,17 @@ void remove_entity(struct game_state *game, uint entity_index)
 	game->vacant_entities[game->vacant_entity_count++] = entity_index;
 }
 
-// This should eventually take entity index for moving
-// an entity between levels, and game->current_level
-// revolves only around player 0 (for the time being)
-void become_next_level(struct game_state *game, int player_entity_index)
+void create_next_level(struct game_state *game, struct level *last_level)
 {
-	if (game->current_level->next_level->next_level)
-	{
-		game->current_level = game->current_level->next_level;
-	}
-	else
-	{
-		// Become next level, assign former level as prev_level
-		struct level *last_level = game->current_level;
-		game->current_level = game->current_level->next_level;
-		game->current_level->prev_level = last_level;
+	struct level *new_level = generate_level(&game->world_memory, last_level);
 
-		// Create next level
-		game->current_level->next_level = generate_level(&game->world_memory, game->current_level);
+	last_level->next_level = new_level;
+	new_level->prev_level = last_level;
 
-		game->current_level->next_offset = calculate_next_offsets(*game->current_level);
+	last_level->next_offset = calculate_next_offsets(*last_level);
 
-		add_enemy(game, game->current_level->next_level);
-		add_enemy(game, game->current_level->next_level);
-	}
-
-	struct entity *player = get_entity(game, player_entity_index);
-
-	player->position.tile_x = game->current_level->entrance.x;
-	player->position.tile_y = game->current_level->entrance.y;
-
-	change_entity_level(game, player_entity_index, game->current_level->prev_level, game->current_level);
-
-	++game->prev_render_depth;			
-	--game->next_render_depth;
-}
-
-void become_prev_level(struct game_state *game, int player_entity_index)
-{
-	// This is obviously broken for more than 1 player now
-	game->current_level = game->current_level->prev_level;
-
-	struct entity *player = get_entity(game, player_entity_index);
-
-	player->position.tile_x = game->current_level->exit.x;
-	player->position.tile_y = game->current_level->exit.y;
-
-	change_entity_level(game, player_entity_index, game->current_level->next_level, game->current_level);
-
-	++game->next_render_depth;
-	--game->prev_render_depth;
-}
-
-struct vector2 get_vector2_from_position(struct game_state *game, struct level_position position)
-{
-	struct vector2 result;
-
-	result.x = (position.tile_x * game->tile_size) + position.pixel_x;
-	result.y = (position.tile_y * game->tile_size) + position.pixel_y;
-
-	return result;
+	add_enemy(game, new_level);
+	add_enemy(game, new_level);
 }
 
 struct move_spec get_default_move_spec()
@@ -736,43 +687,29 @@ void move_entity(struct game_state *game, struct entity *movable_entity, int ent
 	movable_entity->position = reoffset_tile_position(game, movable_entity->position);
 }
 
-void check_for_change_level (struct game_state *game, struct entity *movable_entity, int entity_index, int last_tile_value)
+bool check_for_change_level (struct game_state *game, struct entity *movable_entity, int entity_index, int last_tile_value)
 {
 	bool out_of_bounds = is_out_of_bounds_position(*movable_entity->current_level, movable_entity->position);
 
 	if (last_tile_value == 3 && out_of_bounds)
 	{
-		if (entity_index == game->player_entity_index[0])
-		{
-			become_prev_level(game, entity_index);
-		}
-		else
-		{
-			change_entity_level(game, entity_index, movable_entity->current_level, movable_entity->current_level->prev_level);
-			movable_entity->position.tile_x = movable_entity->current_level->exit.x;
-			movable_entity->position.tile_y = movable_entity->current_level->exit.y;	
-		}
+		change_entity_level(game, entity_index, movable_entity->current_level, movable_entity->current_level->prev_level);
+		movable_entity->position.tile_x = movable_entity->current_level->exit.x;
+		movable_entity->position.tile_y = movable_entity->current_level->exit.y;	
 	}
 	else if (last_tile_value == 4 && out_of_bounds)
 	{
-		if (entity_index == game->player_entity_index[0])
+		if (!movable_entity->current_level->next_level)
 		{
-			become_next_level(game, entity_index);
+			create_next_level(game, movable_entity->current_level);
 		}
-		else
-		{
-			if (movable_entity->current_level->next_level)
-			{
-				change_entity_level(game, entity_index, movable_entity->current_level, movable_entity->current_level->next_level);
-				movable_entity->position.tile_x = movable_entity->current_level->entrance.x;
-				movable_entity->position.tile_y = movable_entity->current_level->entrance.y;
-			}
-			else
-			{
-				remove_entity(game, entity_index);
-			}
-		}
+
+		change_entity_level(game, entity_index, movable_entity->current_level, movable_entity->current_level->next_level);
+		movable_entity->position.tile_x = movable_entity->current_level->entrance.x;
+		movable_entity->position.tile_y = movable_entity->current_level->entrance.y;
 	}
+
+	return out_of_bounds;
 }
 
 void main_game_loop(struct pixel_buffer *buffer, struct platform_memory memory, struct input_events input)
@@ -786,22 +723,15 @@ void main_game_loop(struct pixel_buffer *buffer, struct platform_memory memory, 
 		game->tile_size = 16;
 		game->level_transition_time = 5000*input.frame_t;
 
-		game->current_level = generate_level(&game->world_memory, NULL);
-		game->current_level->render_transition = 0;
-		
-		game->first_level = game->current_level;
+		game->camera_level = generate_level(&game->world_memory, NULL);
+		game->camera_level->render_transition = 0;
 
 		add_null_entity(game);
 
-		//TODO: Player addition dependent on controllers?
-		game->player_entity_index[0] = add_player(game, game->current_level);
+		create_next_level(game, game->camera_level);
 
-		//TODO: Better game start level generation?
-		game->current_level->next_level = generate_level(&game->world_memory, game->current_level);
-		game->current_level->next_offset = calculate_next_offsets(*game->current_level);
-		
-		struct level *this_level = game->current_level;
-		game->current_level->next_level->prev_level = this_level;
+		//TODO: Player addition dependent on controllers?
+		game->player_entity_index[0] = add_player(game, game->camera_level);
 
 		game->initialised = true;
 	}
@@ -845,7 +775,7 @@ void main_game_loop(struct pixel_buffer *buffer, struct platform_memory memory, 
 			}
 			if (input.buttons.mouse_left && player_entity->bullet_refresh_remaining <= 0)
 			{
-				int bullet_index = add_bullet(game, game->current_level, player_entity_index);
+				int bullet_index = add_bullet(game, game->camera_level, player_entity_index);
 				struct entity *bullet = get_entity(game, bullet_index);
 				struct vector2 mouse;
 				mouse.x = input.mouse_x;
@@ -876,8 +806,12 @@ void main_game_loop(struct pixel_buffer *buffer, struct platform_memory memory, 
 
 			int last_tile_value = get_position_tile_value(*player_entity->current_level, player_entity->position);
 			move_entity(game, player_entity, player_entity_index, player_move_spec, delta_t);
-
 			check_for_change_level(game, player_entity, player_entity_index, last_tile_value);
+
+			if (!player_entity->current_level->next_level)
+			{
+				create_next_level(game, player_entity->current_level);
+			}
 
 			if (player_entity->bullet_refresh_remaining > 0)
 			{
@@ -927,29 +861,31 @@ void main_game_loop(struct pixel_buffer *buffer, struct platform_memory memory, 
 		}
 
 		// Center camera on player_entity
-		game->camera_position = get_entity(game, game->player_entity_index[0])->position;
+		struct entity main_player = *get_entity(game, game->player_entity_index[0]);
+		game->camera_position = main_player.position;
+		game->camera_level = main_player.current_level;
 
 		// Process render transitions
 		// Active level always incremented (until at maximum render transition);
-		game->current_level->render_transition = increment_to_max(game->current_level->render_transition, input.frame_t, game->level_transition_time);
+		game->camera_level->render_transition = increment_to_max(game->camera_level->render_transition, input.frame_t, game->level_transition_time);
 
 		// See if player is near exit -- if so, increment or decrement next level
 		int blocks_to_exit;
-		blocks_to_exit = abs(game->current_level->exit.y - player_entity->position.tile_y) + abs(game->current_level->exit.x - player_entity->position.tile_x);
+		blocks_to_exit = abs(game->camera_level->exit.y - player_entity->position.tile_y) + abs(game->camera_level->exit.x - player_entity->position.tile_x);
 
 		if (blocks_to_exit < 3)
 		{
-			game->current_level->next_level->render_transition = increment_to_max(game->current_level->next_level->render_transition, input.frame_t, game->level_transition_time);
+			game->camera_level->next_level->render_transition = increment_to_max(game->camera_level->next_level->render_transition, input.frame_t, game->level_transition_time);
 		}
 		else
 		{
-			game->current_level->next_level->render_transition = decrement_to_zero(game->current_level->next_level->render_transition, input.frame_t);
+			game->camera_level->next_level->render_transition = decrement_to_zero(game->camera_level->next_level->render_transition, input.frame_t);
 		}
 
 		// For other next levels, decrement all next levels before level at a transition level of 0. 
 		int loop_depth = 0;
 		int deepest_render = 0;
-		struct level *most_next_level = game->current_level->next_level;
+		struct level *most_next_level = game->camera_level->next_level;
 		while (most_next_level != NULL && (loop_depth < game->next_render_depth || most_next_level->render_transition > 0))
 		{
 			++loop_depth;
@@ -972,23 +908,23 @@ void main_game_loop(struct pixel_buffer *buffer, struct platform_memory memory, 
 
 		// Vice versa for previous levels
 		int blocks_to_entrance;
-		blocks_to_entrance = abs(game->current_level->entrance.y - player_entity->position.tile_y) + abs(game->current_level->entrance.x - player_entity->position.tile_x);
+		blocks_to_entrance = abs(game->camera_level->entrance.y - player_entity->position.tile_y) + abs(game->camera_level->entrance.x - player_entity->position.tile_x);
 
-		if (game->current_level->prev_level)
+		if (game->camera_level->prev_level)
 		{
 			if (blocks_to_entrance < 3)
 			{
-				game->current_level->prev_level->render_transition = increment_to_max(game->current_level->prev_level->render_transition, input.frame_t, game->level_transition_time);
+				game->camera_level->prev_level->render_transition = increment_to_max(game->camera_level->prev_level->render_transition, input.frame_t, game->level_transition_time);
 			}
 			else
 			{
-				game->current_level->prev_level->render_transition = decrement_to_zero(game->current_level->prev_level->render_transition, input.frame_t);
+				game->camera_level->prev_level->render_transition = decrement_to_zero(game->camera_level->prev_level->render_transition, input.frame_t);
 			}
 		}
 
 		loop_depth = 0;
 		deepest_render = 0;
-		struct level *most_prev_level = game->current_level->prev_level;
+		struct level *most_prev_level = game->camera_level->prev_level;
 		while (most_prev_level != NULL && (loop_depth < game->prev_render_depth || most_prev_level->render_transition > 0))
 		{
 			++loop_depth;
@@ -1029,7 +965,7 @@ void main_game_loop(struct pixel_buffer *buffer, struct platform_memory memory, 
 		int levels_to_render = 1;
 		int levels_rendered = 0;
 
-		game->current_level->frame_rendered = 0;
+		game->camera_level->frame_rendered = 0;
 
 		int next_level_offset_x = 0;
 		int next_level_offset_y = 0;
@@ -1040,7 +976,7 @@ void main_game_loop(struct pixel_buffer *buffer, struct platform_memory memory, 
 		loop_depth = 0;
 		if (loop_depth < next_levels_to_render)
 		{
-			most_next_level = game->current_level->next_level;
+			most_next_level = game->camera_level->next_level;
 		}
 		while (loop_depth < next_levels_to_render)
 		{
@@ -1066,7 +1002,7 @@ void main_game_loop(struct pixel_buffer *buffer, struct platform_memory memory, 
 		loop_depth = 0;
 		if (loop_depth < prev_levels_to_render)
 		{
-			most_prev_level = game->current_level->prev_level;
+			most_prev_level = game->camera_level->prev_level;
 		}
 		while (loop_depth < prev_levels_to_render)
 		{
@@ -1088,7 +1024,7 @@ void main_game_loop(struct pixel_buffer *buffer, struct platform_memory memory, 
 
 		while (levels_rendered < levels_to_render)
 		{
-			struct level *level_to_render = game->current_level;
+			struct level *level_to_render = game->camera_level;
 			
 			int level_offset_x = 0;
 			int level_offset_y = 0;
@@ -1127,7 +1063,6 @@ void main_game_loop(struct pixel_buffer *buffer, struct platform_memory memory, 
 
 			if (level_render_gradient > 0)
 			{
-				// Render level
 				int screen_center_x = (buffer->client_width / 2);
 				int screen_center_y = (buffer->client_height / 2);
 
@@ -1174,7 +1109,6 @@ void main_game_loop(struct pixel_buffer *buffer, struct platform_memory memory, 
 					}
 				}
 
-				// Render entities for level
 				struct index_block *first_block = &level_to_render->first_block;
 				for (struct index_block *block = first_block; block; block = block->next)
 				{

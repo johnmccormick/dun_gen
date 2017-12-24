@@ -1,2 +1,1 @@
-clang sdl_dun_gen.c -o dun_gen_debug -g -Wall -framework SDL2
-
+clang sdl_dun_gen.c -o dun_gen_debug -g -Wall -framework SDL2 -F /Library/Frameworks
