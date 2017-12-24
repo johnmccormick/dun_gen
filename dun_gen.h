@@ -54,7 +54,7 @@ struct entity
 	bool health_bar;
 
 	//TODO: Make union for entity specifics
-	int distance_sq_remaining;
+	int distance_remaining;
 	float bullet_refresh_remaining;
 
 	uint32_t colour;

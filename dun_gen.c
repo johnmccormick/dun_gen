@@ -353,7 +353,7 @@ int add_bullet(struct game_state *game, struct level *target_level, int parent_i
 	struct entity *bullet = get_entity(game, index);
 	bullet->parent_index = parent_index;
 	bullet->position = parent.position;
-	bullet->distance_sq_remaining = 4000;
+	bullet->distance_remaining = 2000;
 
 	return index;
 }
@@ -892,13 +892,13 @@ void main_game_loop(struct pixel_buffer *buffer, struct platform_memory memory, 
 				move_entity(game, bullet, entity_index, bullet_move_spec, delta_t);
 
 				struct vector2 distance_travelled = get_level_position_offset(game, pre_move_position, bullet->position);
-				float distance_sq = dot_product(distance_travelled, distance_travelled);
+				float distance = vector2_length(distance_travelled);
 
-				bullet->distance_sq_remaining -= distance_sq;
+				bullet->distance_remaining -= distance;
 
 				check_for_change_level(game, bullet, entity_index, last_tile_value);
 
-				if (bullet->distance_sq_remaining < 0)
+				if (bullet->distance_remaining < 0)
 				{
 					remove_entity(game, entity_index);
 				}

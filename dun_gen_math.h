@@ -129,6 +129,16 @@ struct vector2 normalise_vector2 (struct vector2 vector)
 	return result;
 }
 
+float vector2_length (struct vector2 vector)
+{
+	float result;
+
+	result = dot_product(vector, vector);
+	result = sqrt(result);
+
+	return result;
+}
+
 struct vector2 subtract_vector2 (struct vector2 a, struct vector2 b)
 {
 	struct vector2 result;
