@@ -291,12 +291,22 @@ struct level_position zero_position()
 	return result;
 }
 
-struct vector2 get_vector2_from_position(struct game_state *game, struct level_position position)
+struct vector2 vector2_from_position(struct game_state *game, struct level_position position)
 {
 	struct vector2 result;
 
 	result.x = (position.tile_x * game->tile_size) + position.pixel_x;
 	result.y = (position.tile_y * game->tile_size) + position.pixel_y;
+
+	return result;
+}
+
+struct vector2 vector2_from_tile_offset_center(struct game_state *game, struct tile_offset offset)
+{
+	struct vector2 result;
+
+	result.x = (float)(offset.x*game->tile_size) + (float)game->tile_size*0.5f;
+	result.y = (float)(offset.y*game->tile_size) + (float)game->tile_size*0.5f;
 
 	return result;
 }

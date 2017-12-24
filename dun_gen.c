@@ -342,8 +342,8 @@ int add_block(struct game_state *game, struct level *target_level, int tile_x, i
 
 int add_enemy(struct game_state *game, struct level *target_level, int tile_x, int tile_y)
 {
-	int width = 12;
-	int height = 12;
+	int width = 8;
+	int height = 8;
 
 	bool collidable = true;
 
@@ -366,6 +366,8 @@ int add_enemy(struct game_state *game, struct level *target_level, int tile_x, i
 
 	enemy->health_render_type = health_bar;
 
+	enemy->level_index = game->levels_active;
+
 	return index;
 }
 
@@ -375,7 +377,7 @@ int add_bullet(struct game_state *game, struct level *target_level, int parent_i
 	int width = 2;
 	int height = 2;
 
-	bool collidable = false;
+	bool collidable = true;
 
 	// TODO: Different bullet types
 
@@ -419,7 +421,7 @@ void create_next_level(struct game_state *game, struct level *last_level)
 		for (int tile_x = 1; tile_x < new_level->width - 1; ++tile_x)
 		{
 			int entity_spawn_type = rand() % 7;	
-			if (entity_spawn_type == 0)
+			if (entity_spawn_type == 0 && game->levels_active > 2)
 			{
 				add_enemy(game, new_level, tile_x, tile_y);
 			}
@@ -429,14 +431,17 @@ void create_next_level(struct game_state *game, struct level *last_level)
 			}
 		}
 	}
+
+	++game->levels_active;
 }
 
 struct move_spec get_default_move_spec()
 {
 	struct move_spec result;
 
-	result.acceleration.x = 0;
-	result.acceleration.y = 0;
+	result.acceleration_direction.x = 0;
+	result.acceleration_direction.y = 0;
+	result.acceleration_scale = 1;
 	result.drag = 12;
 
 	return result;
@@ -447,8 +452,8 @@ void move_entity(struct game_state *game, struct entity *movable_entity, int ent
 	struct level_position old_entity_position = movable_entity->position;
 	struct vector2 entity_position_delta = {0, 0};
 
-	float new_entity_acceleration_x = entity_move_spec.acceleration.x;
-	float new_entity_acceleration_y = entity_move_spec.acceleration.y;
+	float new_entity_acceleration_x = entity_move_spec.acceleration_direction.x * entity_move_spec.acceleration_scale * game->tile_size;
+	float new_entity_acceleration_y = entity_move_spec.acceleration_direction.y * entity_move_spec.acceleration_scale * game->tile_size;
 
 	float drag = entity_move_spec.drag;
 
@@ -537,13 +542,15 @@ void move_entity(struct game_state *game, struct entity *movable_entity, int ent
 			for (int index = 0; index < block->count; ++index)
 			{
 				int test_entity_index = block->index[index];
+				struct entity *test_entity = get_entity(game, test_entity_index);
 
+				//TODO: Translate conditionals into more compressed Projectile Spec struct
 				if ((test_entity_index != entity_index) 
-					&& (test_entity_index != movable_entity->parent_index))
+					&& test_entity->collidable
+					&& test_entity_index != movable_entity->parent_index
+					&& test_entity->parent_index != entity_index)
 				{
-					struct entity *test_entity = get_entity(game, test_entity_index);
-
-					if (test_entity->collidable)
+					if (!(movable_entity->type == entity_bullet && test_entity->type == entity_bullet))
 					{
 						bool hit = false;
 						hit = test_entity_collision(game, *movable_entity, entity_position_delta, *test_entity, &reflection_normal, &t_min);
@@ -716,7 +723,8 @@ bool check_for_change_level (struct game_state *game, struct entity *movable_ent
 	{
 		change_entity_level(game, entity_index, movable_entity->current_level, movable_entity->current_level->prev_level);
 		movable_entity->position.tile_x = movable_entity->current_level->exit.x;
-		movable_entity->position.tile_y = movable_entity->current_level->exit.y;	
+		movable_entity->position.tile_y = movable_entity->current_level->exit.y;
+		--movable_entity->level_index;
 	}
 	else if (last_tile_value == 4 && out_of_bounds)
 	{
@@ -728,6 +736,7 @@ bool check_for_change_level (struct game_state *game, struct entity *movable_ent
 		change_entity_level(game, entity_index, movable_entity->current_level, movable_entity->current_level->next_level);
 		movable_entity->position.tile_x = movable_entity->current_level->entrance.x;
 		movable_entity->position.tile_y = movable_entity->current_level->entrance.y;
+		++movable_entity->level_index;
 	}
 
 	return out_of_bounds;
@@ -749,10 +758,12 @@ void main_game_loop(struct pixel_buffer *buffer, struct platform_memory memory, 
 
 		add_null_entity(game);
 
+		game->levels_active = 1;
 		create_next_level(game, game->camera_level);
 
 		//TODO: Player addition dependent on controllers?
 		game->player_entity_index[0] = add_player(game, game->camera_level);
+		get_entity(game, game->player_entity_index[0])->level_index = 0;
 
 		game->initialised = true;
 	}
@@ -799,12 +810,10 @@ void main_game_loop(struct pixel_buffer *buffer, struct platform_memory memory, 
 				int bullet_index = add_bullet(game, game->camera_level, player_entity_index);
 				struct entity *bullet = get_entity(game, bullet_index);
 				struct vector2 mouse;
-				mouse.x = input.mouse_x;
-				mouse.y = input.mouse_y;
+				mouse.x = input.mouse_x - buffer->client_width*0.5f;
+				mouse.y = input.mouse_y - buffer->client_height*0.5f;
 
-				struct vector2 player;
-				player.x = buffer->client_width*0.5f;
-				player.y = buffer->client_height*0.5f;
+				struct vector2 player = get_level_position_offset(game, player_entity->position, game->camera_position);
 
 				struct vector2 bullet_vector = subtract_vector2(mouse, player);
 				bullet_vector = normalise_vector2(bullet_vector);
@@ -816,13 +825,14 @@ void main_game_loop(struct pixel_buffer *buffer, struct platform_memory memory, 
 			}
 
 			struct move_spec player_move_spec = get_default_move_spec();
-			player_move_spec.acceleration.x = (float)game->tile_size * 60.f * new_player_acceleration_x;
-			player_move_spec.acceleration.y = (float)game->tile_size * 60.f * new_player_acceleration_y;
+			player_move_spec.acceleration_direction.x = new_player_acceleration_x;
+			player_move_spec.acceleration_direction.y = new_player_acceleration_y;
+
+			player_move_spec.acceleration_scale = 60.0f;
 
 			if (input.buttons.keyboard_shift)
 			{
-				player_move_spec.acceleration.x *= 1.4;
-				player_move_spec.acceleration.y *= 1.4;
+				player_move_spec.acceleration_scale *= 1.4;
 			}
 
 			int last_tile_value = get_position_tile_value(*player_entity->current_level, player_entity->position);
@@ -846,35 +856,79 @@ void main_game_loop(struct pixel_buffer *buffer, struct platform_memory memory, 
 
 			if (movable_entity->type == entity_enemy)
 			{
-				struct entity *enemy = get_entity(game, entity_index);
-				int last_tile_value = get_position_tile_value(*enemy->current_level, enemy->position);
-				
 				struct move_spec enemy_move_spec = get_default_move_spec();
-				move_entity(game, enemy, entity_index, enemy_move_spec, delta_t);
+				enemy_move_spec.acceleration_scale = 30.0f;
 
-				check_for_change_level(game, enemy, entity_index, last_tile_value);
+				if (movable_entity->level_index == player_entity->level_index)
+				{
+					struct vector2 enemy_player_vector = get_level_position_offset(game, player_entity->position, movable_entity->position);
+					enemy_player_vector = normalise_vector2(enemy_player_vector);
+					enemy_move_spec.acceleration_direction.x = enemy_player_vector.x;
+					enemy_move_spec.acceleration_direction.y = enemy_player_vector.y;
+				}
+				else if (movable_entity->level_index > player_entity->level_index)
+				{
+					struct vector2 enemy_entrance_vector = {0, 0};
+					if (get_position_tile_value(*movable_entity->current_level, movable_entity->position) == 3)
+					{
+						int entrance_x = movable_entity->current_level->entrance.x;
+						int entrance_y = movable_entity->current_level->entrance.y;
+
+						if (entrance_x == 0)
+						{
+							enemy_entrance_vector.x = -1;
+						}
+						else if (entrance_x == movable_entity->current_level->width - 1)
+						{
+							enemy_entrance_vector.x = 1;
+						}
+
+						if (entrance_y == 0)
+						{
+							enemy_entrance_vector.y = -1;
+						}
+						else if (entrance_y == movable_entity->current_level->height - 1)
+						{
+							enemy_entrance_vector.y = 1;
+						}
+					}
+					else
+					{
+						struct vector2 enemy_vector = vector2_from_position(game, movable_entity->position);
+						struct vector2 entrance_vector = vector2_from_tile_offset_center(game, movable_entity->current_level->entrance);
+						enemy_entrance_vector = subtract_vector2(entrance_vector, enemy_vector);
+						enemy_entrance_vector = normalise_vector2(enemy_entrance_vector);
+					}
+					enemy_move_spec.acceleration_direction.x = enemy_entrance_vector.x;
+					enemy_move_spec.acceleration_direction.y = enemy_entrance_vector.y;
+				}
+
+				int last_tile_value = get_position_tile_value(*movable_entity->current_level, movable_entity->position);
+				
+				move_entity(game, movable_entity, entity_index, enemy_move_spec, delta_t);
+
+				check_for_change_level(game, movable_entity, entity_index, last_tile_value);
 			}
 
 			if (movable_entity->type == entity_bullet)
 			{
-				struct entity *bullet = get_entity(game, entity_index);
-				int last_tile_value = get_position_tile_value(*bullet->current_level, bullet->position);
+				int last_tile_value = get_position_tile_value(*movable_entity->current_level, movable_entity->position);
 
-				struct level_position pre_move_position = bullet->position;
+				struct level_position pre_move_position = movable_entity->position;
 
 				struct move_spec bullet_move_spec = get_default_move_spec();
 				bullet_move_spec.drag = 0;
 
-				move_entity(game, bullet, entity_index, bullet_move_spec, delta_t);
+				move_entity(game, movable_entity, entity_index, bullet_move_spec, delta_t);
 
-				struct vector2 distance_travelled = get_level_position_offset(game, pre_move_position, bullet->position);
+				struct vector2 distance_travelled = get_level_position_offset(game, pre_move_position, movable_entity->position);
 				float distance = vector2_length(distance_travelled);
 
-				bullet->distance_remaining -= distance;
+				movable_entity->distance_remaining -= distance;
 
-				check_for_change_level(game, bullet, entity_index, last_tile_value);
+				check_for_change_level(game, movable_entity, entity_index, last_tile_value);
 
-				if (bullet->distance_remaining < 0)
+				if (movable_entity->distance_remaining < 0)
 				{
 					remove_entity(game, entity_index);
 				}

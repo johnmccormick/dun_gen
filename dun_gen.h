@@ -18,15 +18,22 @@ void *push_struct (struct memory_arena *game_storage, int struct_size);
 
 struct move_spec
 {
-	struct vector2 acceleration;
+	struct vector2 acceleration_direction;
+	float acceleration_scale;
 	float drag;
 };
 
+//TODO: Projectile spec
+// Damage, bounce, etc. 
+// struct projectile_spec
+// {
+// 	int damage;
+// 	bool bounce;
+// 	bool remove_on_collision;
+// }
+
 struct entity
 {
-
-	//TODO: Projectile spec
-	// Damage, bounce, etc. 
 	enum entity_type
 	{
 		entity_null,
@@ -41,6 +48,7 @@ struct entity
 
 	struct level *current_level;
 	struct level_position position;
+	uint level_index;
 	
 	struct vector2 velocity;
 
@@ -91,6 +99,8 @@ struct game_state
 
 	struct level_position camera_position;
 	struct level *camera_level;
+
+	uint levels_active;
 
 	int next_render_depth;
 	int prev_render_depth;

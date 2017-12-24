@@ -15,10 +15,11 @@ struct tile_offset
 
 // enum tile_type
 // {
-// 	tile_floor,
+// 	tile_null,
 // 	tile_entrance,
 // 	tile_exit,
-// 	tile_out_of_bounds, //assert on this
+// 	tile_next_render_trigger,
+// 	tile_prev_render_trigger,
 // };
 
 struct index_block
