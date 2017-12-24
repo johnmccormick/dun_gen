@@ -325,9 +325,10 @@ int add_block(struct game_state *game, struct level *target_level)
 	position.pixel_x = game->tile_size*0.5f;
 	position.pixel_y = game->tile_size*0.5f;
 	
-	game->entities[index].position = position;
-	game->entities[index].max_health = 10;
-	game->entities[index].health = 10;
+	struct entity *block = get_entity(game, index);
+	block->position = position;
+	block->max_health = 10;
+	block->health = 10;
 
 	return index;
 }
@@ -370,7 +371,7 @@ int add_bullet(struct game_state *game, struct level *target_level, int parent_i
 
 	// TODO: Different bullet types
 
-	struct entity parent = game->entities[parent_index];
+	struct entity parent = *get_entity(game, parent_index);
 	uint32_t colour = parent.colour;
 
 	int index = create_entity(game, target_level, entity_bullet, width, height, collidable,	 colour);
@@ -385,10 +386,12 @@ int add_bullet(struct game_state *game, struct level *target_level, int parent_i
 
 void remove_entity(struct game_state *game, uint entity_index)
 {
-	struct level *entity_level = game->entities[entity_index].current_level;
+	struct entity *target_entity = get_entity(game, entity_index);
+
+	struct level *entity_level = target_entity->current_level;
 	change_entity_level(game, entity_index, entity_level, 0);
 
-	game->entities[entity_index].type = entity_null;
+	target_entity->type = entity_null;
 
 	assert(game->vacant_entity_count + 1 < array_count(game->vacant_entities));
 	game->vacant_entities[game->vacant_entity_count++] = entity_index;
@@ -566,7 +569,7 @@ void move_entity(struct game_state *game, struct entity *movable_entity, int ent
 				if ((test_entity_index != entity_index) 
 					&& (test_entity_index != movable_entity->parent_index))
 				{
-					struct entity *test_entity = &game->entities[test_entity_index];
+					struct entity *test_entity = get_entity(game, test_entity_index);
 
 					if (test_entity->collidable)
 					{
@@ -778,36 +781,28 @@ void main_game_loop(struct pixel_buffer *buffer, struct platform_memory memory, 
 
 	if (!game->initialised)
 	{	
-		// Setup memory arena
 		initialise_memory_arena(&game->world_memory, (uint8_t *)memory.address + sizeof(struct game_state), memory.storage_size - (sizeof(struct game_state)));
 
-	    // Create initial level
+		game->tile_size = 16;
+		game->level_transition_time = 5000*input.frame_t;
+
 		game->current_level = generate_level(&game->world_memory, NULL);
 		game->current_level->render_transition = 0;
-
+		
 		game->first_level = game->current_level;
-
-		// Visual settings
-		game->tile_size = 16;
-
-		game->level_transition_time = 5000*input.frame_t;
 
 		add_null_entity(game);
 
-		// Player 0
+		//TODO: Player addition dependent on controllers?
 		game->player_entity_index[0] = add_player(game, game->current_level);
 
-		// Center camera on player 0
-		game->camera_position = game->entities[game->player_entity_index[0]].position;
-
-		// Prep next level
+		//TODO: Better game start level generation?
 		game->current_level->next_level = generate_level(&game->world_memory, game->current_level);
 		game->current_level->next_offset = calculate_next_offsets(*game->current_level);
 		
 		struct level *this_level = game->current_level;
 		game->current_level->next_level->prev_level = this_level;
 
-		// Done until next launch
 		game->initialised = true;
 	}
 
@@ -851,6 +846,7 @@ void main_game_loop(struct pixel_buffer *buffer, struct platform_memory memory, 
 			if (input.buttons.mouse_left && player_entity->bullet_refresh_remaining <= 0)
 			{
 				int bullet_index = add_bullet(game, game->current_level, player_entity_index);
+				struct entity *bullet = get_entity(game, bullet_index);
 				struct vector2 mouse;
 				mouse.x = input.mouse_x;
 				mouse.y = input.mouse_y;
@@ -862,8 +858,8 @@ void main_game_loop(struct pixel_buffer *buffer, struct platform_memory memory, 
 				struct vector2 bullet_vector = subtract_vector2(mouse, player);
 				bullet_vector = normalise_vector2(bullet_vector);
 
-				game->entities[bullet_index].velocity.x = bullet_vector.x * 200;
-				game->entities[bullet_index].velocity.y = bullet_vector.y * 200;
+				bullet->velocity.x = bullet_vector.x * 200;
+				bullet->velocity.y = bullet_vector.y * 200;
 
 				player_entity->bullet_refresh_remaining = 0.075;
 			}
@@ -893,16 +889,16 @@ void main_game_loop(struct pixel_buffer *buffer, struct platform_memory memory, 
 		{
 			struct entity *movable_entity = get_entity(game, entity_index);
 
-			// if (movable_entity->type == entity_enemy)
-			// {
-			// 	struct entity *enemy = get_entity(game, entity_index);
-			// 	int last_tile_value = get_position_tile_value(*enemy->current_level, enemy->position);
+			if (movable_entity->type == entity_enemy)
+			{
+				struct entity *enemy = get_entity(game, entity_index);
+				int last_tile_value = get_position_tile_value(*enemy->current_level, enemy->position);
 				
-			// 	struct move_spec enemy_move_spec = get_default_move_spec();
-			// 	move_entity(game, enemy, entity_index, enemy_move_spec, delta_t);
+				struct move_spec enemy_move_spec = get_default_move_spec();
+				move_entity(game, enemy, entity_index, enemy_move_spec, delta_t);
 
-			// 	check_for_change_level(game, enemy, entity_index, last_tile_value);
-			// }
+				check_for_change_level(game, enemy, entity_index, last_tile_value);
+			}
 
 			if (movable_entity->type == entity_bullet)
 			{
@@ -1186,7 +1182,7 @@ void main_game_loop(struct pixel_buffer *buffer, struct platform_memory memory, 
 					{
 						uint entity_index = block->index[index];
 
-						struct entity entity_to_render = game->entities[entity_index];
+						struct entity entity_to_render = *get_entity(game, entity_index);
 
 						float health_gradient = entity_to_render.max_health && entity_to_render.type == entity_block ? (float)entity_to_render.health / (float)entity_to_render.max_health : 1;
 
