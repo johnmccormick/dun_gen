@@ -17,6 +17,13 @@ void *push_struct (struct memory_arena *game_storage, int struct_size);
 
 #include "dun_gen_tile.h"
 
+struct move_spec
+{
+	float delta_t;
+	struct vector2 acceleration;
+	float drag;
+};
+
 enum entity_type
 {
 	entity_null,
@@ -38,10 +45,13 @@ struct entity
 	struct vector2 velocity;
 
 	int parent_index;
+
 	bool collidable;
 
 	int max_health;
 	int health;
+
+	bool health_bar;
 
 	//TODO: Make union for entity specifics
 	int distance_sq_remaining;
@@ -49,12 +59,6 @@ struct entity
 
 	uint32_t colour;
 };
-
-// struct entity_node
-// {
-// 	struct entity data;
-// 	struct entity *next;
-// };
 
 #define MAX_PLAYERS 1
 
@@ -81,10 +85,6 @@ struct game_state
 	struct index_block *first_free_block;	
 
 	struct level_position camera_position;
-
-	int player_width;
-	int player_height;
-	int base_player_acceleration;
 
 	float level_transition_time;
 
