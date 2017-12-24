@@ -233,6 +233,9 @@ int create_entity(struct game_state *game, struct level *target_level, enum enti
 	new_entity->type = type;
 	new_entity->pixel_width = width;
 	new_entity->pixel_height = height;
+	new_entity->position = zero_position();
+	new_entity->velocity = zero_vector2();
+
 	new_entity->collidable = collidable;
 	new_entity->parent_index = 0;
 	new_entity->colour = colour;
@@ -243,6 +246,27 @@ int create_entity(struct game_state *game, struct level *target_level, enum enti
 	change_entity_level(game, index, 0, target_level);
 
 	return index;
+}
+
+void add_null_entity(struct game_state *game)
+{
+	assert(game->entity_count == 0);
+
+	int width = 0;
+	int height = 0;
+
+	struct level *target_level = NULL;
+
+	uint32_t colour = 0;
+
+	bool collidable = false;
+
+	create_entity(game, target_level, entity_null, width, height, collidable, colour);
+
+	struct level_position position = zero_position();
+
+	struct entity *null = get_entity(game, 0);
+	null->position = position;
 }
 
 int add_player(struct game_state *game, struct level *target_level)
@@ -264,9 +288,10 @@ int add_player(struct game_state *game, struct level *target_level)
 	position.pixel_x = game->tile_size / 2;
 	position.pixel_y = game->tile_size / 2;
 
-	game->entities[index].position = position;
-	game->entities[index].max_health = 100;
-	game->entities[index].health = 100;
+	struct entity *player = get_entity(game, index);
+	player->position = position;
+	player->max_health = 100;
+	player->health = 100;
 
 	return index;
 }
@@ -767,7 +792,7 @@ void main_game_loop(struct pixel_buffer *buffer, struct platform_memory memory, 
 
 		game->level_transition_time = 5000*input.frame_t;
 
-		create_entity(game, 0, entity_null, 0, 0, false, 0);
+		add_null_entity(game);
 
 		// Player 0
 		game->player_entity_index[0] = add_player(game, game->current_level);

@@ -277,3 +277,16 @@ struct level_position get_level_center_position(int width, int height)
 
 	return result;
 }
+
+struct level_position zero_position()
+{
+	struct level_position result;
+
+	result.tile_x = 0;
+	result.tile_y = 0;
+
+	result.pixel_x = 0;
+	result.pixel_y = 0;
+
+	return result;
+}

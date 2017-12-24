@@ -148,3 +148,14 @@ struct vector2 subtract_vector2 (struct vector2 a, struct vector2 b)
 
 	return result;
 }
+
+
+struct vector2 zero_vector2 ()
+{
+	struct vector2 result;
+
+	result.x = 0;
+	result.y = 0;
+
+	return result;
+}
