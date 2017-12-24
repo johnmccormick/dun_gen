@@ -243,6 +243,8 @@ int create_entity(struct game_state *game, struct level *target_level, enum enti
 	new_entity->max_health = 0;
 	new_entity->health = 0;
 
+	new_entity->health_render_type = health_null;
+
 	change_entity_level(game, index, 0, target_level);
 
 	return index;
@@ -293,10 +295,12 @@ int add_player(struct game_state *game, struct level *target_level)
 	player->max_health = 100;
 	player->health = 100;
 
+	player->health_render_type = health_bar;
+
 	return index;
 }
 
-int add_block(struct game_state *game, struct level *target_level)
+int add_block(struct game_state *game, struct level *target_level, int tile_x, int tile_y)
 {
 	int width = game->tile_size;
 	int height = game->tile_size;
@@ -319,8 +323,8 @@ int add_block(struct game_state *game, struct level *target_level)
 
 	struct level_position position;
 
-	position.tile_x = (rand() % (target_level->width - 2)) + 1;
-	position.tile_y = (rand() % (target_level->height - 2)) + 1;
+	position.tile_x = tile_x;
+	position.tile_y = tile_y;
 
 	position.pixel_x = game->tile_size*0.5f;
 	position.pixel_y = game->tile_size*0.5f;
@@ -330,11 +334,13 @@ int add_block(struct game_state *game, struct level *target_level)
 	block->max_health = 10;
 	block->health = 10;
 
+	block->health_render_type = health_fade;
+
 	return index;
 }
 
 
-int add_enemy(struct game_state *game, struct level *target_level)
+int add_enemy(struct game_state *game, struct level *target_level, int tile_x, int tile_y)
 {
 	int width = 12;
 	int height = 12;
@@ -347,8 +353,8 @@ int add_enemy(struct game_state *game, struct level *target_level)
 
 	struct level_position position;
 
-	position.tile_x = (rand() % (target_level->width - 2)) + 1;
-	position.tile_y = (rand() % (target_level->height - 2)) + 1;
+	position.tile_x = tile_x;
+	position.tile_y = tile_y;
 
 	position.pixel_x = game->tile_size*0.5f;
 	position.pixel_y = game->tile_size*0.5f;
@@ -357,6 +363,8 @@ int add_enemy(struct game_state *game, struct level *target_level)
 	enemy->position = position;
 	enemy->max_health = 20;
 	enemy->health = 20;
+
+	enemy->health_render_type = health_bar;
 
 	return index;
 }
@@ -406,8 +414,21 @@ void create_next_level(struct game_state *game, struct level *last_level)
 
 	last_level->next_offset = calculate_next_offsets(*last_level);
 
-	add_enemy(game, new_level);
-	add_enemy(game, new_level);
+	for (int tile_y = 1; tile_y < new_level->height - 1; ++tile_y)
+	{
+		for (int tile_x = 1; tile_x < new_level->width - 1; ++tile_x)
+		{
+			int entity_spawn_type = rand() % 7;	
+			if (entity_spawn_type == 0)
+			{
+				add_enemy(game, new_level, tile_x, tile_y);
+			}
+			if (entity_spawn_type == 1)
+			{
+				add_block(game, new_level, tile_x, tile_y);
+			}
+		}
+	}
 }
 
 struct move_spec get_default_move_spec()
@@ -1118,9 +1139,15 @@ void main_game_loop(struct pixel_buffer *buffer, struct platform_memory memory, 
 
 						struct entity entity_to_render = *get_entity(game, entity_index);
 
-						float health_gradient = entity_to_render.max_health && entity_to_render.type == entity_block ? (float)entity_to_render.health / (float)entity_to_render.max_health : 1;
+						float entity_render_gradient = level_render_gradient;
 
-						float entity_render_gradient = level_render_gradient * health_gradient;
+						if (entity_to_render.health_render_type == health_fade)
+						{
+							assert(entity_to_render.max_health > 0);
+							float health_gradient = (float)entity_to_render.health / (float)entity_to_render.max_health;
+							health_gradient = health_gradient < 0 ? 0 : health_gradient;
+							entity_render_gradient *= health_gradient;
+						}
 
 						int entity_offset_x = render_offset_x + (entity_to_render.position.tile_x * game->tile_size) - (entity_to_render.pixel_width*0.5f) + round(entity_to_render.position.pixel_x);
 						int entity_offset_y = render_offset_y + (entity_to_render.position.tile_y * game->tile_size) - (entity_to_render.pixel_height*0.5f) + round(entity_to_render.position.pixel_y);
@@ -1146,7 +1173,7 @@ void main_game_loop(struct pixel_buffer *buffer, struct platform_memory memory, 
 								entity_pointer += buffer->texture_pitch;
 						}
 
-						if (entity_to_render.type == entity_player ||entity_to_render.type == entity_enemy)
+						if (entity_to_render.health_render_type == health_bar)
 						{
 							min_x = clamp_min(entity_offset_x + 1, 0);
 							max_x = clamp_max(entity_offset_x + entity_to_render.pixel_width - 1, buffer->client_width);
@@ -1162,20 +1189,19 @@ void main_game_loop(struct pixel_buffer *buffer, struct platform_memory memory, 
 
 							for (int y = min_y; y < max_y; ++y)
 							{
-									uint32_t *pixel = (uint32_t *)hp_pointer;
-									for (int x = min_x; x < max_x; ++x)
-									{	
-										uint32_t colour = 0x000000;
-										if ((float)(x - min_x) / (float)(max_x - min_x) < entity_health_percent)
-										{
-											colour = create_colour_32bit(entity_render_gradient, 0x00ff0000, pixel);
-										}
-										*pixel++ = colour;
+								uint32_t *pixel = (uint32_t *)hp_pointer;
+								for (int x = min_x; x < max_x; ++x)
+								{	
+									uint32_t colour = 0x000000;
+									if ((float)(x - min_x) / (float)(max_x - min_x) < entity_health_percent)
+									{
+										colour = create_colour_32bit(entity_render_gradient, 0x00ff0000, pixel);
 									}
-									hp_pointer += buffer->texture_pitch;
+									*pixel++ = colour;
+								}
+								hp_pointer += buffer->texture_pitch;
 							}
 						}
-
 					}
 				}
 			}

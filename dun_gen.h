@@ -54,6 +54,13 @@ struct entity
 	int max_health;
 	int health;
 
+	enum
+	{
+		health_null,
+		health_bar,
+		health_fade,
+	} health_render_type;
+
 	//TODO: Make union for entity specifics
 	int distance_remaining;
 	float bullet_refresh_remaining;
