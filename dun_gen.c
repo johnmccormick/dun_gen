@@ -273,8 +273,8 @@ void add_null_entity(struct game_state *game)
 
 int add_player(struct game_state *game, struct level *target_level)
 {
-	int width = 12;
-	int height = 12;
+	int width = 14;
+	int height = 14;
 
 	uint32_t colour = 0x000000ff;
 
@@ -556,7 +556,7 @@ void move_entity(struct game_state *game, struct entity *movable_entity, int ent
 						hit = test_entity_collision(game, *movable_entity, entity_position_delta, *test_entity, &reflection_normal, &t_min);
 
 						// TODO: make something like entity.hit_damage 
-						if (movable_entity->type == entity_bullet && hit)
+						if ((movable_entity->type == entity_bullet || test_entity->type == entity_bullet) && hit)
 						{
 							if (--test_entity->health < 0)
 							{
@@ -687,11 +687,85 @@ void move_entity(struct game_state *game, struct entity *movable_entity, int ent
 				}
 			}
 		}
-		// Test tilemap
+		//TODO: Very temporary! Reduce down to entities registered on next level exit tile?
+		if (old_tile_value == 3)
+		{
+			struct index_block *first_block = &movable_entity->current_level->prev_level->first_block;
+			for (struct index_block *block = first_block; block; block = block->next)
+			{
+				for (int index = 0; index < block->count; ++index)
+				{
+					int test_entity_index = block->index[index];
+					struct entity *test_entity = get_entity(game, test_entity_index);
+
+					if ((test_entity_index != entity_index) 
+						&& test_entity->collidable
+						&& test_entity_index != movable_entity->parent_index
+						&& test_entity->parent_index != entity_index)
+					{
+						if (!(movable_entity->type == entity_bullet && test_entity->type == entity_bullet))
+						{
+							struct entity fake_prev_test_entity = *test_entity;
+							fake_prev_test_entity.position.tile_x -= movable_entity->current_level->prev_level->next_offset.x;
+							fake_prev_test_entity.position.tile_y -= movable_entity->current_level->prev_level->next_offset.y;
+
+							bool hit = false;
+							hit = test_entity_collision(game, *movable_entity, entity_position_delta, fake_prev_test_entity, &reflection_normal, &t_min);
+
+							if (movable_entity->type == entity_bullet && hit)
+							{
+								if (--test_entity->health < 0)
+								{
+									remove_entity(game, test_entity_index);
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+		//TODO: Very temporary! Reduce down to entities registered on prev level entrance tile?
+		if (old_tile_value == 4 && movable_entity->current_level->next_level)
+		{
+			struct index_block *first_block = &movable_entity->current_level->next_level->first_block;
+			for (struct index_block *block = first_block; block; block = block->next)
+			{
+				for (int index = 0; index < block->count; ++index)
+				{
+					int test_entity_index = block->index[index];
+					struct entity *test_entity = get_entity(game, test_entity_index);
+
+					if ((test_entity_index != entity_index) 
+						&& test_entity->collidable
+						&& test_entity_index != movable_entity->parent_index
+						&& test_entity->parent_index != entity_index)
+					{
+						if (!(movable_entity->type == entity_bullet && test_entity->type == entity_bullet))
+						{
+							struct entity fake_next_test_entity = *test_entity;
+
+							fake_next_test_entity.position.tile_x += movable_entity->current_level->next_offset.x;
+							fake_next_test_entity.position.tile_y += movable_entity->current_level->next_offset.y;
+
+							bool hit = false;
+							hit = test_entity_collision(game, *movable_entity, entity_position_delta, fake_next_test_entity, &reflection_normal, &t_min);
+
+							if (movable_entity->type == entity_bullet && hit)
+							{
+								if (--test_entity->health < 0)
+								{
+									remove_entity(game, test_entity_index);
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+
 		movable_entity->position.pixel_x += (entity_position_delta.x * t_min);
 		movable_entity->position.pixel_y += (entity_position_delta.y * t_min);
 
-		// Reflection angle
 		float reflection_perp_scale = 1.0f;
 		if (movable_entity->type == entity_bullet)
 		{
@@ -857,7 +931,7 @@ void main_game_loop(struct pixel_buffer *buffer, struct platform_memory memory, 
 			if (movable_entity->type == entity_enemy)
 			{
 				struct move_spec enemy_move_spec = get_default_move_spec();
-				enemy_move_spec.acceleration_scale = 30.0f;
+				enemy_move_spec.acceleration_scale = 25.0f;
 
 				if (movable_entity->level_index == player_entity->level_index)
 				{
