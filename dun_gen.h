@@ -22,21 +22,19 @@ struct move_spec
 	float drag;
 };
 
-//TODO: Projectile spec
-// Damage, bounce, etc. 
-
-enum entity_type
-{
-	entity_null,
-	entity_player,
-	entity_enemy,
-	entity_block,
-	entity_bullet,
-};
-
 struct entity
 {
-	enum entity_type type;
+
+	//TODO: Projectile spec
+	// Damage, bounce, etc. 
+	enum entity_type
+	{
+		entity_null,
+		entity_player,
+		entity_enemy,
+		entity_block,
+		entity_bullet,
+	} type;
 
 	int pixel_width;
 	int pixel_height;

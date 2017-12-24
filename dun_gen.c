@@ -313,9 +313,9 @@ int add_block(struct game_state *game, struct level *target_level, int tile_x, i
 	g = 0x19;
 	b = 0x01;
 
-	r += (rand() % 35);
-	g += (rand() % 35);
-	b += (rand() % 35);
+	r += (rand() % 30);
+	g += (rand() % 30);
+	b += (rand() % 30);
 
 	uint32_t colour = create_colour_argb(1.0, r, g, b, 0);
 
@@ -551,7 +551,7 @@ void move_entity(struct game_state *game, struct entity *movable_entity, int ent
 						// TODO: make something like entity.hit_damage 
 						if (movable_entity->type == entity_bullet && hit)
 						{
-							if (--test_entity->health < -1)
+							if (--test_entity->health < 0)
 							{
 								remove_entity(game, test_entity_index);
 							}
@@ -1144,8 +1144,7 @@ void main_game_loop(struct pixel_buffer *buffer, struct platform_memory memory, 
 						if (entity_to_render.health_render_type == health_fade)
 						{
 							assert(entity_to_render.max_health > 0);
-							float health_gradient = (float)entity_to_render.health / (float)entity_to_render.max_health;
-							health_gradient = health_gradient < 0 ? 0 : health_gradient;
+							float health_gradient = (float)(entity_to_render.health) / (float)entity_to_render.max_health;
 							entity_render_gradient *= health_gradient;
 						}
 
@@ -1205,7 +1204,6 @@ void main_game_loop(struct pixel_buffer *buffer, struct platform_memory memory, 
 					}
 				}
 			}
-
 			level_to_render->frame_rendered = 1;
 
 			levels_rendered++;
