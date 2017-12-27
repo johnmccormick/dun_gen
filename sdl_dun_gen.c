@@ -229,6 +229,11 @@ int main ()
                             render_ratio = render_ratio >= 1 ? --render_ratio : max_ratio;
                             set_screen_size(window, main_buffer, render_ratio, max_ratio);
                         } break;
+
+                        case SDLK_v:
+                        {   
+                            sdl_input.buttons.keyboard_v = true;
+                        } break;
                     }
                 } break;
 
@@ -289,6 +294,7 @@ int main ()
 
         // Temporary for toggling pause 
         sdl_input.buttons.keyboard_space = false;
+        sdl_input.buttons.keyboard_v = false;
 
         // Now apply pixel buffer to texture
         if(SDL_UpdateTexture(texture,

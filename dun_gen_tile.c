@@ -2,12 +2,11 @@ uint32_t get_tile_colour(int tile_value, float level_render_gradient, uint32_t *
 {
 	uint32_t colour = 0;
 
-	// Floor / Entrance / Exit
 	if (tile_value == 2 || tile_value == 3 || tile_value == 4)
 	{
 		colour = create_colour_argb(level_render_gradient, 0xff, 0xff, 0xff, pixel);
 	}
-	// Wall
+
 	else if (tile_value == 1)
 	{
 		colour = create_colour_argb(level_render_gradient, 0x22, 0x22, 0x22, pixel);
@@ -48,8 +47,7 @@ struct level *generate_level(struct memory_arena *world_memory, struct level *pr
 {
 	struct level *new_level = push_struct(world_memory, sizeof(struct level));
 
-	// Max w/h should always be >= 3
-	// otherwise there can be no door
+	// NOTE: Max w/h should always be >= 3 otherwise there can be no door
 	int MIN_LEVEL_WIDTH = 3; 
 	int MIN_LEVEL_HEIGHT = 3;
 	
@@ -82,10 +80,8 @@ struct level *generate_level(struct memory_arena *world_memory, struct level *pr
 	{
 		for (int x = 0; x < new_level->width; ++x)
 		{
-			// On level boundary, make wall tile
 			if (x == 0 || x == new_level->width - 1 || y == 0 || y == new_level->height - 1)
 				*(new_level->map + (y * new_level->width) + x) = 1;
-			// Otherwise, it is floor
 			else	
 				*(new_level->map + (y * new_level->width) + x) = 2;
 		}
@@ -93,9 +89,7 @@ struct level *generate_level(struct memory_arena *world_memory, struct level *pr
 
 	int new_exit_side = -1;
 	if (prev_level)
-	{	// If a standard level (i.e. not the first level)
-
-		//These should never overlap...
+	{
 		int new_entrance_side = -1;
 		if ((prev_level)->exit.x == 0)
 		{
@@ -126,7 +120,6 @@ struct level *generate_level(struct memory_arena *world_memory, struct level *pr
 			printf("Could not dermine entrance side of previous level\n");
 		}
 
-		// Overwrite wall tile with entrance tile
 		*(new_level->map + (new_level->width * new_level->entrance.y) + (new_level->entrance.x)) = 3;
 
 		if (new_entrance_side >= 0 && new_entrance_side < 4)
@@ -141,7 +134,7 @@ struct level *generate_level(struct memory_arena *world_memory, struct level *pr
 		}
 	}
 	else
-	{	// For use with first level
+	{
 		new_exit_side = (rand() / (RAND_MAX / 4));
 	}
 
@@ -170,7 +163,6 @@ struct level *generate_level(struct memory_arena *world_memory, struct level *pr
 		printf("Recieved bad exit side\n");
 	}
 
-	// Overwrite wall tile with exit tile
 	*(new_level->map + (new_level->width * new_level->exit.y) + (new_level->exit.x)) = 4;
 
 	return new_level;
@@ -309,4 +301,111 @@ struct vector2 vector2_from_tile_offset_center(struct game_state *game, struct t
 	result.y = (float)(offset.y*game->tile_size) + (float)game->tile_size*0.5f;
 
 	return result;
+}
+
+struct heatmap_node
+{
+	int tile_x, tile_y;
+	int distance;
+	bool calculated;
+	struct heatmap_node *next;
+};
+
+void calculate_vector_field(struct level level_to_map, int tile_x, int tile_y, struct pixel_buffer *buffer, bool render_output)
+{
+	int height = level_to_map.height;
+	int width = level_to_map.width;
+
+	struct heatmap_node heatmap_graph[height][width];
+
+	for (int y = 0; y < height; ++y)
+	{
+		for (int x = 0; x < width; ++x)
+		{
+			heatmap_graph[y][x].calculated = false;
+			heatmap_graph[y][x].distance = -1;
+			heatmap_graph[y][x].next = NULL;
+			heatmap_graph[y][x].tile_x = x;
+			heatmap_graph[y][x].tile_y = y;
+		}
+	}
+
+	heatmap_graph[tile_y][tile_x].distance = 0;
+	heatmap_graph[tile_y][tile_x].calculated = true;
+
+	struct heatmap_node *first_node_in_queue = &heatmap_graph[tile_y][tile_x];
+	struct heatmap_node *last_node_in_queue = &heatmap_graph[tile_y][tile_x];
+
+	int target_x = tile_x;
+	int target_y = tile_y;
+
+	while (first_node_in_queue != NULL)
+	{
+		for (int x = -1; x <= 1; x += 2)
+		{
+			if (target_x + x >= 0 && target_x + x < width)
+			{
+				if (heatmap_graph[target_y][target_x + x].calculated == false)
+				{
+					heatmap_graph[target_y][target_x + x].distance = heatmap_graph[target_y][target_x].distance + 1; 
+					heatmap_graph[target_y][target_x + x].calculated = true;
+					last_node_in_queue->next = &heatmap_graph[target_y][target_x + x];
+					last_node_in_queue = &heatmap_graph[target_y][target_x + x];
+				}
+			}
+		}
+		for (int y = -1; y <= 1; y += 2)
+		{
+			if (target_y + y >= 0 && target_y + y < height)
+			{
+				if (heatmap_graph[target_y + y][target_x].calculated == false)
+				{
+					heatmap_graph[target_y + y][target_x].distance = heatmap_graph[target_y][target_x].distance + 1; 
+					heatmap_graph[target_y + y][target_x].calculated = true;
+					last_node_in_queue->next = &heatmap_graph[target_y + y][target_x];
+					last_node_in_queue = &heatmap_graph[target_y + y][target_x];
+				}
+			}
+		}
+
+		first_node_in_queue = first_node_in_queue->next;
+		
+		if (first_node_in_queue)
+		{
+			target_x = first_node_in_queue->tile_x;
+			target_y = first_node_in_queue->tile_y;
+		}
+	}
+
+	if (render_output)
+	{
+		uint8_t *buffer_pixels = buffer->pixels;
+		uint8_t *row_pixels = buffer->pixels;
+		uint8_t *column_pixels = buffer->pixels;
+
+		int size = 4;
+
+		for (int y = 0; y < height; ++y)
+		{
+			column_pixels = row_pixels;
+			for (int x = 0; x < width; ++x)
+			{
+				buffer_pixels = column_pixels;
+				for (int py = 0; py < size; ++py)
+				{
+					uint32_t *pixel = (uint32_t *)buffer_pixels;
+					for (int px = 0; px < size; ++px)
+					{
+						int r = 0, g = 0, b = 0;
+						b = 255 - (heatmap_graph[y][x].distance * 10);
+						b = b >= 0 ? b : 0;
+						*pixel++ = create_colour_argb(1, r, g, b, 0);
+					}
+					buffer_pixels += buffer->texture_pitch;
+				}
+				column_pixels += buffer->bytes_per_pixel * size;
+			}
+			row_pixels += buffer->texture_pitch * size;
+		}
+	}
 }

@@ -64,7 +64,7 @@ void initialise_memory_arena(struct memory_arena *world_memory, uint8_t *base, i
 	world_memory->used = 0;
 }
 
-// Function works swapping x for y / top and bottom for left and right
+// Function works swapping x and y
 bool test_rect_collision(float x_diff, float delta_x, float top_y, float bottom_y, float delta_y, float *t_min)
 {
 	bool result = false;
@@ -108,7 +108,6 @@ bool test_entity_collision(struct game_state *game, struct entity player_entity,
 	float bottom_right_dx = (tile_to_player_x * game->tile_size) + pixel_to_player_x + half_diameter_width;
 	float bottom_right_dy = (tile_to_player_y * game->tile_size) + pixel_to_player_y + half_diameter_height;
 
-	// Test left wall
 	if (test_rect_collision(top_left_dx, entity_position_delta.x, top_left_dy, bottom_right_dy, entity_position_delta.y, t_min))
 	{
 		reflection_normal->x = -1;
@@ -116,7 +115,6 @@ bool test_entity_collision(struct game_state *game, struct entity player_entity,
 		result = true;
 	}
 
-	// Test right wall
 	if (test_rect_collision(bottom_right_dx, entity_position_delta.x, top_left_dy, bottom_right_dy, entity_position_delta.y, t_min))
 	{	
 		reflection_normal->x = 1;
@@ -124,7 +122,6 @@ bool test_entity_collision(struct game_state *game, struct entity player_entity,
 		result = true;
 	}
 
-	// Test top wall
 	if (test_rect_collision(top_left_dy, entity_position_delta.y, top_left_dx, bottom_right_dx, entity_position_delta.x, t_min))
 	{
 		reflection_normal->x = 0;
@@ -132,7 +129,6 @@ bool test_entity_collision(struct game_state *game, struct entity player_entity,
 		result = true;
 	}
 
-	// Test bottom wall
 	if (test_rect_collision(bottom_right_dy, entity_position_delta.y, top_left_dx, bottom_right_dx, entity_position_delta.x, t_min))
 	{
 		reflection_normal->x = 0;
@@ -380,7 +376,6 @@ int add_bullet(struct game_state *game, struct level *target_level, int parent_i
 	bool collidable = true;
 
 	// TODO: Different bullet types
-
 	struct entity parent = *get_entity(game, parent_index);
 	uint32_t colour = parent.colour;
 
@@ -416,16 +411,24 @@ void create_next_level(struct game_state *game, struct level *last_level)
 
 	last_level->next_offset = calculate_next_offsets(*last_level);
 
+	bool spawn_enemies = (rand() % 2);
+	bool spawn_blocks = (rand() % 3) > 0;
+	
+	if (game->levels_active < 3)
+	{
+		spawn_enemies = false;
+	}
+
 	for (int tile_y = 1; tile_y < new_level->height - 1; ++tile_y)
 	{
 		for (int tile_x = 1; tile_x < new_level->width - 1; ++tile_x)
 		{
 			int entity_spawn_type = rand() % 7;	
-			if (entity_spawn_type == 0 && game->levels_active > 2)
+			if (entity_spawn_type == 0 && spawn_enemies)
 			{
 				add_enemy(game, new_level, tile_x, tile_y);
 			}
-			if (entity_spawn_type == 1)
+			if (entity_spawn_type == 1 && spawn_blocks)
 			{
 				add_block(game, new_level, tile_x, tile_y);
 			}
@@ -510,7 +513,6 @@ void move_entity(struct game_state *game, struct entity *movable_entity, int ent
 		reflection_normal.x = 0;
 		reflection_normal.y = 0;
 
-		// Test level tiles
 		for (int tile_y = min_tile_y; tile_y <= max_tile_y; ++tile_y)
 		{
 			for (int tile_x = min_tile_x; tile_x <= max_tile_x; ++tile_x)
@@ -534,8 +536,6 @@ void move_entity(struct game_state *game, struct entity *movable_entity, int ent
 				}
 			}
 		}
-		// Test entities within level
-		// TODO: Test entities on next entrance / prev exit
 		struct index_block *first_block = &movable_entity->current_level->first_block;
 		for (struct index_block *block = first_block; block; block = block->next)
 		{
@@ -567,7 +567,6 @@ void move_entity(struct game_state *game, struct entity *movable_entity, int ent
 				}
 			}
 		}
-		// Test prev level tiles
 		if (out_of_bounds && old_tile_value == 3)
 		{
 			int exit_tile_x = movable_entity->current_level->prev_level->exit.x;
@@ -627,7 +626,6 @@ void move_entity(struct game_state *game, struct entity *movable_entity, int ent
 				}
 			}
 		}
-		// Test next level tiles
 		if (out_of_bounds && old_tile_value == 4 && movable_entity->current_level->next_level)
 		{
 			int entrance_tile_x = movable_entity->current_level->next_level->entrance.x;
@@ -687,7 +685,6 @@ void move_entity(struct game_state *game, struct entity *movable_entity, int ent
 				}
 			}
 		}
-		//TODO: Very temporary! Reduce down to entities registered on next level exit tile?
 		if (old_tile_value == 3)
 		{
 			struct index_block *first_block = &movable_entity->current_level->prev_level->first_block;
@@ -724,7 +721,7 @@ void move_entity(struct game_state *game, struct entity *movable_entity, int ent
 				}
 			}
 		}
-		//TODO: Very temporary! Reduce down to entities registered on prev level entrance tile?
+		//TODO: Reduce down / to entities registered on prev level entrance tile?
 		if (old_tile_value == 4 && movable_entity->current_level->next_level)
 		{
 			struct index_block *first_block = &movable_entity->current_level->next_level->first_block;
@@ -847,8 +844,12 @@ void main_game_loop(struct pixel_buffer *buffer, struct platform_memory memory, 
 		game->paused = !game->paused;
 	}
 
-	// For loop should iterate over MAX_PLAYERS indexes
-	// once individualised player code is written
+	if (input.buttons.keyboard_v)
+	{
+		game->show_vector_field = !game->show_vector_field;
+	}
+
+	// TODO: loop over MAX_PLAYERS once individualised player code is written
 	int player_index = 0;
 
 	int player_entity_index = game->player_entity_index[player_index];
@@ -940,7 +941,7 @@ void main_game_loop(struct pixel_buffer *buffer, struct platform_memory memory, 
 					enemy_move_spec.acceleration_direction.x = enemy_player_vector.x;
 					enemy_move_spec.acceleration_direction.y = enemy_player_vector.y;
 				}
-				else if (movable_entity->level_index > player_entity->level_index)
+				else if (player_entity->level_index - movable_entity->level_index >= -2 && (int)player_entity->level_index - (int)movable_entity->level_index < 0)
 				{
 					struct vector2 enemy_entrance_vector = {0, 0};
 					if (get_position_tile_value(*movable_entity->current_level, movable_entity->position) == 3)
@@ -1009,16 +1010,12 @@ void main_game_loop(struct pixel_buffer *buffer, struct platform_memory memory, 
 			}
 		}
 
-		// Center camera on player_entity
 		struct entity main_player = *get_entity(game, game->player_entity_index[0]);
 		game->camera_position = main_player.position;
 		game->camera_level = main_player.current_level;
 
-		// Process render transitions
-		// Active level always incremented (until at maximum render transition);
 		game->camera_level->render_transition = increment_to_max(game->camera_level->render_transition, input.frame_t, game->level_transition_time);
 
-		// See if player is near exit -- if so, increment or decrement next level
 		int blocks_to_exit;
 		blocks_to_exit = abs(game->camera_level->exit.y - player_entity->position.tile_y) + abs(game->camera_level->exit.x - player_entity->position.tile_x);
 
@@ -1031,7 +1028,6 @@ void main_game_loop(struct pixel_buffer *buffer, struct platform_memory memory, 
 			game->camera_level->next_level->render_transition = decrement_to_zero(game->camera_level->next_level->render_transition, input.frame_t);
 		}
 
-		// For other next levels, decrement all next levels before level at a transition level of 0. 
 		int loop_depth = 0;
 		int deepest_render = 0;
 		struct level *most_next_level = game->camera_level->next_level;
@@ -1052,10 +1048,8 @@ void main_game_loop(struct pixel_buffer *buffer, struct platform_memory memory, 
 				break;
 			}
 		}
-		// Store how deep the loop went so render_game knows how many next levels to render 
 		game->next_render_depth = deepest_render;
 
-		// Vice versa for previous levels
 		int blocks_to_entrance;
 		blocks_to_entrance = abs(game->camera_level->entrance.y - player_entity->position.tile_y) + abs(game->camera_level->entrance.x - player_entity->position.tile_x);
 
@@ -1093,7 +1087,6 @@ void main_game_loop(struct pixel_buffer *buffer, struct platform_memory memory, 
 		}
 		game->prev_render_depth = deepest_render;
 
-		// Clear background
 		uint8_t *row = (uint8_t *)buffer->pixels;
 		for (int y = 0; y < buffer->client_height; ++y)
 		{
@@ -1105,8 +1098,6 @@ void main_game_loop(struct pixel_buffer *buffer, struct platform_memory memory, 
 			row += buffer->texture_pitch;
 		}
 
-		// Render levels/entities
-		// Converts player map coordinate to centered position in terms of pixels
 		struct level_position camera_position = game->camera_position;
 		int camera_x = (camera_position.tile_x * game->tile_size) + round(camera_position.pixel_x);
 		int camera_y = (camera_position.tile_y * game->tile_size) + round(camera_position.pixel_y);
@@ -1362,5 +1353,6 @@ void main_game_loop(struct pixel_buffer *buffer, struct platform_memory memory, 
 			mouse_pointer += buffer->texture_pitch;
 		}
 
+		calculate_vector_field((*game->camera_level), player_entity->position.tile_x, player_entity->position.tile_y, buffer, game->show_vector_field);
 	}
 }

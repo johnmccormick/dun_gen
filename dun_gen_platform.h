@@ -30,6 +30,7 @@ struct button_events
     bool keyboard_right;
     bool keyboard_shift;
     bool keyboard_space;
+    bool keyboard_v;
     bool mouse_left;
     bool mouse_right;
 };

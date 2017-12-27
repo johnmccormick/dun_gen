@@ -80,6 +80,7 @@ struct game_state
 {
 	bool initialised;
 	bool paused;
+	bool show_vector_field;
 
 	struct memory_arena world_memory;
 
