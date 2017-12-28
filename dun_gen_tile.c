@@ -75,6 +75,7 @@ struct level *generate_level(struct memory_arena *world_memory, struct level *pr
 	new_level->height = (rand() % (MAX_LEVEL_HEIGHT - MIN_LEVEL_HEIGHT + 1)) + MIN_LEVEL_HEIGHT;
 
 	new_level->map = push_struct(world_memory, (sizeof(int) * new_level->width * new_level->height));
+	new_level->block_map = push_struct(world_memory, (sizeof(int) * new_level->width * new_level->height));
 
 	for (int y = 0; y < new_level->height; ++y)
 	{
@@ -84,6 +85,8 @@ struct level *generate_level(struct memory_arena *world_memory, struct level *pr
 				*(new_level->map + (y * new_level->width) + x) = 1;
 			else	
 				*(new_level->map + (y * new_level->width) + x) = 2;
+
+			*(new_level->block_map + (y * new_level->width) + x) = 0;
 		}
 	}
 
@@ -216,6 +219,12 @@ bool is_out_of_bounds_tile(struct level current_level, int tile_x, int tile_y)
 	return result;
 }
 
+bool get_block_value(struct level current_level, int tile_x, int tile_y)
+{
+	int value = *(current_level.block_map + tile_x + (tile_y * current_level.width));
+	return value;
+}
+
 bool is_collision_position(struct game_state *game, struct level current_level, struct level_position player_position)
 {
 	struct level_position position_result;
@@ -345,7 +354,9 @@ void calculate_vector_field(struct level level_to_map, int tile_x, int tile_y, s
 		{
 			if (target_x + x >= 0 && target_x + x < width)
 			{
-				if (heatmap_graph[target_y][target_x + x].calculated == false)
+				if ((heatmap_graph[target_y][target_x + x].calculated == false) 
+					&& get_tile_value(level_to_map, target_x + x, target_y) != 1
+					&& get_block_value(level_to_map, target_x + x, target_y) == 0)
 				{
 					heatmap_graph[target_y][target_x + x].distance = heatmap_graph[target_y][target_x].distance + 1; 
 					heatmap_graph[target_y][target_x + x].calculated = true;
@@ -358,7 +369,9 @@ void calculate_vector_field(struct level level_to_map, int tile_x, int tile_y, s
 		{
 			if (target_y + y >= 0 && target_y + y < height)
 			{
-				if (heatmap_graph[target_y + y][target_x].calculated == false)
+				if ((heatmap_graph[target_y + y][target_x].calculated == false) 
+					&& get_tile_value(level_to_map, target_x, target_y + y) != 1
+					&& get_block_value(level_to_map, target_x, target_y + y) == 0)
 				{
 					heatmap_graph[target_y + y][target_x].distance = heatmap_graph[target_y][target_x].distance + 1; 
 					heatmap_graph[target_y + y][target_x].calculated = true;
@@ -383,7 +396,7 @@ void calculate_vector_field(struct level level_to_map, int tile_x, int tile_y, s
 		uint8_t *row_pixels = buffer->pixels;
 		uint8_t *column_pixels = buffer->pixels;
 
-		int size = 4;
+		int size = 10;
 
 		for (int y = 0; y < height; ++y)
 		{
@@ -398,7 +411,8 @@ void calculate_vector_field(struct level level_to_map, int tile_x, int tile_y, s
 					{
 						int r = 0, g = 0, b = 0;
 						b = 255 - (heatmap_graph[y][x].distance * 10);
-						b = b >= 0 ? b : 0;
+						b = b >= 0 && b ? b : 0;
+						b = b <= 255 && b ? b : 0;
 						*pixel++ = create_colour_argb(1, r, g, b, 0);
 					}
 					buffer_pixels += buffer->texture_pitch;

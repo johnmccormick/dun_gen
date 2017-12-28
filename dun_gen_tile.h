@@ -33,6 +33,7 @@ struct level
 {
 	uint index;
 	int *map;
+	int *block_map;
 	int width;
 	int height;
 	struct tile_offset entrance;

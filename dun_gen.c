@@ -332,6 +332,8 @@ int add_block(struct game_state *game, struct level *target_level, int tile_x, i
 
 	block->health_render_type = health_fade;
 
+	*(target_level->block_map + (tile_y * target_level->width) + tile_x) = 1;
+
 	return index;
 }
 
@@ -394,6 +396,12 @@ void remove_entity(struct game_state *game, uint entity_index)
 	struct entity *target_entity = get_entity(game, entity_index);
 
 	struct level *entity_level = target_entity->current_level;
+
+	if (target_entity->type == entity_block)
+	{
+		*(entity_level->block_map + (target_entity->position.tile_y * entity_level->width) + target_entity->position.tile_x) = 0;
+	}
+
 	change_entity_level(game, entity_index, entity_level, 0);
 
 	target_entity->type = entity_null;
