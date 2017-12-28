@@ -76,6 +76,7 @@ struct level *generate_level(struct memory_arena *world_memory, struct level *pr
 
 	new_level->map = push_struct(world_memory, (sizeof(int) * new_level->width * new_level->height));
 	new_level->block_map = push_struct(world_memory, (sizeof(int) * new_level->width * new_level->height));
+	new_level->vector_map = push_struct(world_memory, (sizeof(struct vector2) * new_level->width * new_level->height));
 
 	for (int y = 0; y < new_level->height; ++y)
 	{
@@ -87,6 +88,8 @@ struct level *generate_level(struct memory_arena *world_memory, struct level *pr
 				*(new_level->map + (y * new_level->width) + x) = 2;
 
 			*(new_level->block_map + (y * new_level->width) + x) = 0;
+			(new_level->vector_map + (y * new_level->width) + x)->x = 0;
+			(new_level->vector_map + (y * new_level->width) + x)->y = 0;
 		}
 	}
 
@@ -195,33 +198,41 @@ struct level_position reoffset_tile_position(struct game_state *game, struct lev
 	return new_position;
 }
 
-int get_position_tile_value(struct level current_level, struct level_position position)
-{
-	int value = *(current_level.map + position.tile_x + (position.tile_y * current_level.width));
-	return value;
-}
-
-int get_tile_value(struct level current_level, int tile_x, int tile_y)
-{
-	int value = *(current_level.map + tile_x + (tile_y * current_level.width));
-	return value;
-}
-
-bool is_out_of_bounds_position(struct level current_level, struct level_position player)
-{
-	bool result = (player.tile_x < 0 || player.tile_x >= current_level.width || player.tile_y < 0 || player.tile_y >= current_level.height);
-	return result;
-}
-
 bool is_out_of_bounds_tile(struct level current_level, int tile_x, int tile_y)
 {
 	bool result = (tile_x < 0 || tile_x >= current_level.width || tile_y < 0 || tile_y >= current_level.height);
 	return result;
 }
 
+bool is_out_of_bounds_position(struct level current_level, struct level_position player)
+{
+	bool result = is_out_of_bounds_tile(current_level, player.tile_x, player.tile_y);
+	return result;
+}
+
+int get_tile_value(struct level current_level, int tile_x, int tile_y)
+{
+	int value = 0;
+	if (!is_out_of_bounds_tile(current_level, tile_x, tile_y))
+	{
+		value = *(current_level.map + tile_x + (tile_y * current_level.width));
+	}
+	return value;
+}
+
+int get_position_tile_value(struct level current_level, struct level_position position)
+{
+	int value = get_tile_value(current_level, position.tile_x, position.tile_y);
+	return value;
+}
+
 bool get_block_value(struct level current_level, int tile_x, int tile_y)
 {
-	int value = *(current_level.block_map + tile_x + (tile_y * current_level.width));
+	int value = 0;
+	if (!is_out_of_bounds_tile(current_level, tile_x, tile_y))
+	{
+		value = *(current_level.block_map + tile_x + (tile_y * current_level.width));
+	}
 	return value;
 }
 
@@ -317,6 +328,7 @@ struct heatmap_node
 	int tile_x, tile_y;
 	int distance;
 	bool calculated;
+	struct vector2 vector;
 	struct heatmap_node *next;
 };
 
@@ -336,6 +348,8 @@ void calculate_vector_field(struct level level_to_map, int tile_x, int tile_y, s
 			heatmap_graph[y][x].next = NULL;
 			heatmap_graph[y][x].tile_x = x;
 			heatmap_graph[y][x].tile_y = y;
+			heatmap_graph[y][x].vector.x = 0;
+			heatmap_graph[y][x].vector.y = 0;
 		}
 	}
 
@@ -390,6 +404,62 @@ void calculate_vector_field(struct level level_to_map, int tile_x, int tile_y, s
 		}
 	}
 
+	for (int y = 0; y < height; ++y)
+	{
+		for (int x = 0; x < width; ++x)
+		{
+			if (heatmap_graph[y][x].calculated)
+			{
+				int dist_left;
+				int dist_right;
+				int dist_top;
+				int dist_bottom;
+
+				if (x - 1 >= 0 && heatmap_graph[y][x - 1].calculated == true)
+				{
+					dist_left = heatmap_graph[y][x - 1].distance;
+				}
+				else
+				{
+					dist_left = heatmap_graph[y][x].distance;
+				}
+
+				if (x + 1 < width && heatmap_graph[y][x + 1].calculated == true)
+				{
+					dist_right = heatmap_graph[y][x + 1].distance;
+				}
+				else
+				{
+					dist_right = heatmap_graph[y][x].distance;
+				}
+
+				if (y - 1 >= 0 && heatmap_graph[y - 1][x].calculated == true)
+				{
+					dist_top = heatmap_graph[y - 1][x].distance;
+				}
+				else
+				{
+					dist_top = heatmap_graph[y][x].distance;
+				}
+
+				if (y + 1 < height && heatmap_graph[y + 1][x].calculated == true)
+				{
+					dist_bottom = heatmap_graph[y + 1][x].distance;
+				}
+				else
+				{
+					dist_bottom = heatmap_graph[y][x].distance;
+				}
+
+				if (heatmap_graph[y][x].calculated == true)
+				{
+					(level_to_map.vector_map + (y * width) + x)->x = (float)(dist_left - dist_right)*0.5f;
+					(level_to_map.vector_map + (y * width) + x)->y = (float)(dist_top - dist_bottom)*0.5f;
+				}
+			}
+		}
+	}
+
 	if (render_output)
 	{
 		uint8_t *buffer_pixels = buffer->pixels;
@@ -422,4 +492,13 @@ void calculate_vector_field(struct level level_to_map, int tile_x, int tile_y, s
 			row_pixels += buffer->texture_pitch * size;
 		}
 	}
+}
+
+struct vector2 get_position_vector(struct level entity_level, struct level_position position)
+{
+	struct vector2 result = {0, 0};
+
+	result = *(entity_level.vector_map + (position.tile_y * entity_level.width) + position.tile_x);
+
+	return result;
 }

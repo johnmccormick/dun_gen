@@ -359,8 +359,8 @@ int add_enemy(struct game_state *game, struct level *target_level, int tile_x, i
 	
 	struct entity *enemy = get_entity(game, index);
 	enemy->position = position;
-	enemy->max_health = 20;
-	enemy->health = 20;
+	enemy->max_health = 16;
+	enemy->health = 16;
 
 	enemy->health_render_type = health_bar;
 
@@ -944,14 +944,28 @@ void main_game_loop(struct pixel_buffer *buffer, struct platform_memory memory, 
 
 				if (movable_entity->level_index == player_entity->level_index)
 				{
-					struct vector2 enemy_player_vector = get_level_position_offset(game, player_entity->position, movable_entity->position);
-					enemy_player_vector = normalise_vector2(enemy_player_vector);
-					enemy_move_spec.acceleration_direction.x = enemy_player_vector.x;
-					enemy_move_spec.acceleration_direction.y = enemy_player_vector.y;
+					struct level_position entity_top_left = movable_entity->position;
+					struct level_position entity_bottom_right = movable_entity->position;
+					entity_top_left.pixel_x -= (float)movable_entity->pixel_width*0.5f;
+					entity_top_left.pixel_y -= (float)movable_entity->pixel_width*0.5f;
+					entity_top_left = reoffset_tile_position(game, entity_top_left);
+					entity_bottom_right.pixel_x += (float)movable_entity->pixel_width*0.5f;
+					entity_bottom_right.pixel_y += (float)movable_entity->pixel_height*0.5f;
+					entity_bottom_right = reoffset_tile_position(game, entity_bottom_right);
+					struct vector2 vectors[2];
+					vectors[0] = get_position_vector(*movable_entity->current_level, entity_top_left);
+					vectors[1] = get_position_vector(*movable_entity->current_level, entity_bottom_right);
+					// printf("entity_index %i\n", entity_index);
+					// printf("vectors 0 x %f y %f\n", vectors[0].x, vectors[0].y);
+					// printf("vectors 1 x %f y %f\n", vectors[0].x, vectors[0].y);
+					enemy_move_spec.acceleration_direction = add_vectors(vectors, 2);
+					// printf("acceleration_direction x %f y %f\n", enemy_move_spec.acceleration_direction.x, enemy_move_spec.acceleration_direction.y);
+					enemy_move_spec.acceleration_direction = normalise_vector2(enemy_move_spec.acceleration_direction);
+					// printf("normalised acceleration_direction x %f y %f\n", enemy_move_spec.acceleration_direction.x, enemy_move_spec.acceleration_direction.y);
 				}
-				else if (player_entity->level_index - movable_entity->level_index >= -2 && (int)player_entity->level_index - (int)movable_entity->level_index < 0)
+				else if (player_entity->level_index - movable_entity->level_index >= -3 && (int)player_entity->level_index - (int)movable_entity->level_index < 0)
 				{
-					struct vector2 enemy_entrance_vector = {0, 0};
+					struct vector2 enemy_to_entrance_vector = {0, 0};
 					if (get_position_tile_value(*movable_entity->current_level, movable_entity->position) == 3)
 					{
 						int entrance_x = movable_entity->current_level->entrance.x;
@@ -959,31 +973,67 @@ void main_game_loop(struct pixel_buffer *buffer, struct platform_memory memory, 
 
 						if (entrance_x == 0)
 						{
-							enemy_entrance_vector.x = -1;
+							enemy_to_entrance_vector.x = -1;
 						}
 						else if (entrance_x == movable_entity->current_level->width - 1)
 						{
-							enemy_entrance_vector.x = 1;
+							enemy_to_entrance_vector.x = 1;
 						}
 
 						if (entrance_y == 0)
 						{
-							enemy_entrance_vector.y = -1;
+							enemy_to_entrance_vector.y = -1;
 						}
 						else if (entrance_y == movable_entity->current_level->height - 1)
 						{
-							enemy_entrance_vector.y = 1;
+							enemy_to_entrance_vector.y = 1;
 						}
 					}
 					else
 					{
 						struct vector2 enemy_vector = vector2_from_position(game, movable_entity->position);
 						struct vector2 entrance_vector = vector2_from_tile_offset_center(game, movable_entity->current_level->entrance);
-						enemy_entrance_vector = subtract_vector2(entrance_vector, enemy_vector);
-						enemy_entrance_vector = normalise_vector2(enemy_entrance_vector);
+						enemy_to_entrance_vector = subtract_vector2(entrance_vector, enemy_vector);
+						enemy_to_entrance_vector = normalise_vector2(enemy_to_entrance_vector);
 					}
-					enemy_move_spec.acceleration_direction.x = enemy_entrance_vector.x;
-					enemy_move_spec.acceleration_direction.y = enemy_entrance_vector.y;
+					enemy_move_spec.acceleration_direction.x = enemy_to_entrance_vector.x;
+					enemy_move_spec.acceleration_direction.y = enemy_to_entrance_vector.y;
+				}
+				else if (player_entity->level_index - movable_entity->level_index <= 3 && (int)player_entity->level_index - (int)movable_entity->level_index > 0)
+				{
+					struct vector2 enemy_to_exit_vector = {0, 0};
+					if (get_position_tile_value(*movable_entity->current_level, movable_entity->position) == 4)
+					{
+						int exit_x = movable_entity->current_level->exit.x;
+						int exit_y = movable_entity->current_level->exit.y;
+
+						if (exit_x == 0)
+						{
+							enemy_to_exit_vector.x = -1;
+						}
+						else if (exit_x == movable_entity->current_level->width - 1)
+						{
+							enemy_to_exit_vector.x = 1;
+						}
+
+						if (exit_y == 0)
+						{
+							enemy_to_exit_vector.y = -1;
+						}
+						else if (exit_y == movable_entity->current_level->height - 1)
+						{
+							enemy_to_exit_vector.y = 1;
+						}
+					}
+					else
+					{
+						struct vector2 enemy_vector = vector2_from_position(game, movable_entity->position);
+						struct vector2 exit_vector = vector2_from_tile_offset_center(game, movable_entity->current_level->exit);
+						enemy_to_exit_vector = subtract_vector2(exit_vector, enemy_vector);
+						enemy_to_exit_vector = normalise_vector2(enemy_to_exit_vector);
+					}
+					enemy_move_spec.acceleration_direction.x = enemy_to_exit_vector.x;
+					enemy_move_spec.acceleration_direction.y = enemy_to_exit_vector.y;
 				}
 
 				int last_tile_value = get_position_tile_value(*movable_entity->current_level, movable_entity->position);
@@ -1271,7 +1321,7 @@ void main_game_loop(struct pixel_buffer *buffer, struct platform_memory memory, 
 						if (entity_to_render.health_render_type == health_fade)
 						{
 							assert(entity_to_render.max_health > 0);
-							float health_gradient = (float)(entity_to_render.health) / (float)entity_to_render.max_health;
+							float health_gradient = 0.5f + (((float)(entity_to_render.health) / (float)entity_to_render.max_health)*0.5f);
 							entity_render_gradient *= health_gradient;
 						}
 

@@ -4,12 +4,12 @@ struct vector2
 	float y;
 };
 
-int make_neg_zero (int x)
+int make_neg_zero(int x)
 {
 	return (x < 0 ? 0 : x);
 }
 
-int increment_to_max (float value, float increment, int max_value)
+int increment_to_max(float value, float increment, int max_value)
 {
 	if (value < max_value)
 	{
@@ -19,7 +19,7 @@ int increment_to_max (float value, float increment, int max_value)
 	return value;
 }
 
-int increment_to_zero (float value, float increment)
+int increment_to_zero(float value, float increment)
 {
 	if (value < 0)
 	{
@@ -29,7 +29,7 @@ int increment_to_zero (float value, float increment)
 	return value;
 }
 
-int decrement_to_zero (float value, float increment)
+int decrement_to_zero(float value, float increment)
 {
 	if (value > 0)
 	{
@@ -39,7 +39,7 @@ int decrement_to_zero (float value, float increment)
 	return value;
 }
 
-int minimum_int (int value_1, int value_2)
+int minimum_int(int value_1, int value_2)
 {
 	int result = 0;
 
@@ -55,7 +55,7 @@ int minimum_int (int value_1, int value_2)
 	return result;
 }
 
-int maximum_int (int value_1, int value_2)
+int maximum_int(int value_1, int value_2)
 {
 	int result = 0;
 
@@ -71,7 +71,7 @@ int maximum_int (int value_1, int value_2)
 	return result;
 }
 
-float dot_product (struct vector2 a, struct vector2 b)
+float dot_product(struct vector2 a, struct vector2 b)
 {
 	float result;
 
@@ -115,13 +115,22 @@ float clamp_f_min_max(float value, float min, float max)
 	return result;
 }
 
-struct vector2 normalise_vector2 (struct vector2 vector)
+struct vector2 normalise_vector2(struct vector2 vector)
 {
 	struct vector2 result;
 	
 	float length_squared = dot_product(vector, vector);
 
-	float normalised_length = 1 / sqrt(length_squared);
+	float normalised_length = 0;
+
+	if (length_squared > 0)
+	{
+		normalised_length = 1 / sqrt(length_squared);
+	}
+	else
+	{
+		normalised_length = 0.0f;
+	}
 
 	result.x = vector.x * normalised_length;
 	result.y = vector.y * normalised_length;
@@ -129,7 +138,7 @@ struct vector2 normalise_vector2 (struct vector2 vector)
 	return result;
 }
 
-float vector2_length (struct vector2 vector)
+float vector2_length(struct vector2 vector)
 {
 	float result;
 
@@ -139,7 +148,7 @@ float vector2_length (struct vector2 vector)
 	return result;
 }
 
-struct vector2 subtract_vector2 (struct vector2 a, struct vector2 b)
+struct vector2 subtract_vector2(struct vector2 a, struct vector2 b)
 {
 	struct vector2 result;
 
@@ -149,7 +158,7 @@ struct vector2 subtract_vector2 (struct vector2 a, struct vector2 b)
 	return result;
 }
 
-struct vector2 zero_vector2 ()
+struct vector2 zero_vector2()
 {
 	struct vector2 result;
 
@@ -157,4 +166,18 @@ struct vector2 zero_vector2 ()
 	result.y = 0;
 
 	return result;
+}
+
+struct vector2 add_vectors(struct vector2 vectors[], int num_vectors)
+{
+	struct vector2 result = {0, 0};
+	
+	for (int i = 0; i < num_vectors; ++i)
+	{
+		result.x += vectors[i].x;
+		result.y += vectors[i].y;
+	}
+
+	return result;
+
 }

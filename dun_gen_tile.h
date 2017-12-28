@@ -32,10 +32,14 @@ struct index_block
 struct level
 {
 	uint index;
+	
+	int width;
+	int height;	
+	
 	int *map;
 	int *block_map;
-	int width;
-	int height;
+	struct vector2 *vector_map;
+
 	struct tile_offset entrance;
 	struct tile_offset exit;
 	struct level *prev_level;
