@@ -105,4 +105,6 @@ struct game_state
 
 	int next_render_depth;
 	int prev_render_depth;
+
+	uint pulse;
 };

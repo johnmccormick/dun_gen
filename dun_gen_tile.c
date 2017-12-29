@@ -76,7 +76,7 @@ struct level *generate_level(struct memory_arena *world_memory, struct level *pr
 
 	new_level->map = push_struct(world_memory, (sizeof(int) * new_level->width * new_level->height));
 	new_level->block_map = push_struct(world_memory, (sizeof(int) * new_level->width * new_level->height));
-	new_level->vector_map = push_struct(world_memory, (sizeof(struct vector2) * new_level->width * new_level->height));
+	new_level->vector_map = push_struct(world_memory, (sizeof(struct vector2) * (new_level->width * 2) * (new_level->height * 2)));
 
 	for (int y = 0; y < new_level->height; ++y)
 	{
@@ -453,8 +453,22 @@ void calculate_vector_field(struct level level_to_map, int tile_x, int tile_y, s
 
 				if (heatmap_graph[y][x].calculated == true)
 				{
-					(level_to_map.vector_map + (y * width) + x)->x = (float)(dist_left - dist_right)*0.5f;
-					(level_to_map.vector_map + (y * width) + x)->y = (float)(dist_top - dist_bottom)*0.5f;
+					float vector_x = (float)(dist_left - dist_right);
+					float vector_y = (float)(dist_top - dist_bottom);
+
+					if (heatmap_graph[y][x].distance != 0)
+					{
+						if (vector_x == 0.0f && heatmap_graph[y][x].distance > dist_right)
+						{
+							vector_x = 1.0f;
+						}
+						if (vector_y == 0.0f && heatmap_graph[y][x].distance > dist_bottom)
+						{
+							vector_y = 1.0f;
+						}
+					}
+					(level_to_map.vector_map + (y * width) + x)->x = vector_x;
+					(level_to_map.vector_map + (y * width) + x)->y = vector_y;
 				}
 			}
 		}
@@ -494,9 +508,11 @@ void calculate_vector_field(struct level level_to_map, int tile_x, int tile_y, s
 	}
 }
 
-struct vector2 get_position_vector(struct level entity_level, struct level_position position)
+struct vector2 get_position_vector(struct game_state *game, struct level entity_level, struct level_position position)
 {
 	struct vector2 result = {0, 0};
+
+	position = reoffset_tile_position(game, position);
 
 	result = *(entity_level.vector_map + (position.tile_y * entity_level.width) + position.tile_x);
 
