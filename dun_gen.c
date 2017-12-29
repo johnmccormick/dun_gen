@@ -64,7 +64,6 @@ void initialise_memory_arena(struct memory_arena *world_memory, uint8_t *base, i
 	world_memory->used = 0;
 }
 
-// Function works swapping x and y
 bool test_rect_collision(float x_diff, float delta_x, float top_y, float bottom_y, float delta_y, float *t_min)
 {
 	bool result = false;
@@ -143,6 +142,8 @@ void change_entity_level(struct game_state *game, uint entity_index, struct leve
 {
 	if (old_level != new_level)
 	{
+		assert(game->entities[entity_index].type != entity_null);
+
 		struct memory_arena *world_memory = &game->world_memory;
 
 		if (old_level)
@@ -168,7 +169,6 @@ void change_entity_level(struct game_state *game, uint entity_index, struct leve
 								game->first_free_level_index_block = next_block;
 							}
 						}
-
 						entity_found = true;
 					}
 				}
@@ -177,6 +177,7 @@ void change_entity_level(struct game_state *game, uint entity_index, struct leve
 
 		if (new_level)
 		{
+			assert(game->entities[entity_index].type != entity_vacant);
 			struct index_block *block = &new_level->first_block;
 			if (block->count == array_count(block->index))
 			{
@@ -402,9 +403,9 @@ void remove_entity(struct game_state *game, uint entity_index)
 		*(entity_level->block_map + (target_entity->position.tile_y * entity_level->width) + target_entity->position.tile_x) = 0;
 	}
 
-	change_entity_level(game, entity_index, entity_level, 0);
+	target_entity->type = entity_vacant;
 
-	target_entity->type = entity_null;
+	change_entity_level(game, entity_index, entity_level, 0);
 
 	assert(game->vacant_entity_count + 1 < array_count(game->vacant_entities));
 	game->vacant_entities[game->vacant_entity_count++] = entity_index;
@@ -419,7 +420,7 @@ void create_next_level(struct game_state *game, struct level *last_level)
 
 	last_level->next_offset = calculate_next_offsets(*last_level);
 
-	bool spawn_enemies = true;//(rand() % 2) > 1;
+	bool spawn_enemies = (rand() % 2) > 0;
 	bool spawn_blocks = (rand() % 7) > 0;
 	
 	if (game->levels_active < 3)
@@ -432,16 +433,18 @@ void create_next_level(struct game_state *game, struct level *last_level)
 		for (int tile_x = 1; tile_x < new_level->width - 1; ++tile_x)
 		{
 			int entity_spawn_type = rand() % 20;
-			if (entity_spawn_type < 5 && spawn_blocks)
+			if (spawn_blocks && entity_spawn_type < 5)
 			{
 				add_block(game, new_level, tile_x, tile_y);
 			}
-			else if (entity_spawn_type >= 5 && entity_spawn_type < 7 && spawn_enemies)
+			else if (spawn_enemies && entity_spawn_type >= 5 && entity_spawn_type < 7)
 			{
 				add_enemy(game, new_level, tile_x, tile_y);
 			}
 		}
 	}
+
+	calculate_vector_field(*new_level, new_level->entrance.x, new_level->entrance.y, 0, 0);
 
 	++game->levels_active;
 }
@@ -795,31 +798,38 @@ void move_entity(struct game_state *game, struct entity *movable_entity, int ent
 	movable_entity->position = reoffset_tile_position(game, movable_entity->position);
 }
 
-bool check_for_change_level (struct game_state *game, struct entity *movable_entity, int entity_index, int last_tile_value)
+bool check_for_change_level(struct game_state *game, struct entity *movable_entity, int entity_index, int last_tile_value)
 {
-	bool out_of_bounds = is_out_of_bounds_position(*movable_entity->current_level, movable_entity->position);
+	if (movable_entity->type != entity_vacant)
+	{
+		bool out_of_bounds = is_out_of_bounds_position(*movable_entity->current_level, movable_entity->position);
 
-	if (last_tile_value == 3 && out_of_bounds)
-	{
-		change_entity_level(game, entity_index, movable_entity->current_level, movable_entity->current_level->prev_level);
-		movable_entity->position.tile_x = movable_entity->current_level->exit.x;
-		movable_entity->position.tile_y = movable_entity->current_level->exit.y;
-		--movable_entity->level_index;
-	}
-	else if (last_tile_value == 4 && out_of_bounds)
-	{
-		if (!movable_entity->current_level->next_level)
+		if (last_tile_value == 3 && out_of_bounds)
 		{
-			create_next_level(game, movable_entity->current_level);
+			change_entity_level(game, entity_index, movable_entity->current_level, movable_entity->current_level->prev_level);
+			movable_entity->position.tile_x = movable_entity->current_level->exit.x;
+			movable_entity->position.tile_y = movable_entity->current_level->exit.y;
+			--movable_entity->level_index;
+		}
+		else if (last_tile_value == 4 && out_of_bounds)
+		{
+			if (!movable_entity->current_level->next_level)
+			{
+				create_next_level(game, movable_entity->current_level);
+			}
+
+			change_entity_level(game, entity_index, movable_entity->current_level, movable_entity->current_level->next_level);
+			movable_entity->position.tile_x = movable_entity->current_level->entrance.x;
+			movable_entity->position.tile_y = movable_entity->current_level->entrance.y;
+			++movable_entity->level_index;
 		}
 
-		change_entity_level(game, entity_index, movable_entity->current_level, movable_entity->current_level->next_level);
-		movable_entity->position.tile_x = movable_entity->current_level->entrance.x;
-		movable_entity->position.tile_y = movable_entity->current_level->entrance.y;
-		++movable_entity->level_index;
+		return out_of_bounds;
 	}
-
-	return out_of_bounds;
+	else
+	{
+		return 0;
+	}
 }
 
 void main_game_loop(struct pixel_buffer *buffer, struct platform_memory memory, struct input_events input)
@@ -955,7 +965,7 @@ void main_game_loop(struct pixel_buffer *buffer, struct platform_memory memory, 
 					}
 					else if (game->pulse < 40)
 					{
-					
+						// Use center position
 					}
 					else if (game->pulse < 60)
 					{
@@ -964,7 +974,6 @@ void main_game_loop(struct pixel_buffer *buffer, struct platform_memory memory, 
 					}
 
 					enemy_move_spec.acceleration_direction = get_position_vector(game, *movable_entity->current_level, entity_pos);
-
 					enemy_move_spec.acceleration_direction = normalise_vector2(enemy_move_spec.acceleration_direction);
 				}
 
@@ -1343,7 +1352,11 @@ void main_game_loop(struct pixel_buffer *buffer, struct platform_memory memory, 
 			mouse_pointer += buffer->texture_pitch;
 		}
 
-		calculate_vector_field((*game->camera_level), player_entity->position.tile_x, player_entity->position.tile_y, buffer, game->show_vector_field);
+		if ((game->pulse) % 20)
+		{
+			calculate_vector_field((*game->camera_level), player_entity->position.tile_x, player_entity->position.tile_y, buffer, game->show_vector_field);
+		}
+
 		game->pulse = ++game->pulse > 60 ? 0 : game->pulse;
 	}
 }

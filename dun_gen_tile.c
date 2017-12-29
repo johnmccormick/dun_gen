@@ -369,7 +369,7 @@ void calculate_vector_field(struct level level_to_map, int tile_x, int tile_y, s
 			if (target_x + x >= 0 && target_x + x < width)
 			{
 				if ((heatmap_graph[target_y][target_x + x].calculated == false) 
-					&& get_tile_value(level_to_map, target_x + x, target_y) != 1
+					&& get_tile_value(level_to_map, target_x + x, target_y) > 1
 					&& get_block_value(level_to_map, target_x + x, target_y) == 0)
 				{
 					heatmap_graph[target_y][target_x + x].distance = heatmap_graph[target_y][target_x].distance + 1; 
@@ -473,6 +473,24 @@ void calculate_vector_field(struct level level_to_map, int tile_x, int tile_y, s
 			}
 		}
 	}
+
+	if (tile_x == 0)
+	{
+		(level_to_map.vector_map + (tile_y * width) + tile_x)->x = -1.0f;
+	}
+	if (tile_x == width)
+	{
+		(level_to_map.vector_map + (tile_y * width) + tile_x)->x = 1.0f;
+	}
+	if (tile_y == 0)
+	{
+		(level_to_map.vector_map + (tile_y * width) + tile_x)->y = -1.0f;
+	}
+	if (tile_y == height)
+	{
+		(level_to_map.vector_map + (tile_y * width) + tile_x)->y = 1.0f;	
+	}
+
 
 	if (render_output)
 	{

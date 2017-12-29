@@ -37,6 +37,7 @@ struct entity
 	enum entity_type
 	{
 		entity_null,
+		entity_vacant,
 		entity_player,
 		entity_enemy,
 		entity_block,
