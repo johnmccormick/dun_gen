@@ -419,8 +419,8 @@ void create_next_level(struct game_state *game, struct level *last_level)
 
 	last_level->next_offset = calculate_next_offsets(*last_level);
 
-	bool spawn_enemies = !(rand() % 1);
-	bool spawn_blocks = (rand() % 3) > 0;
+	bool spawn_enemies = true;//(rand() % 2) > 1;
+	bool spawn_blocks = (rand() % 7) > 0;
 	
 	if (game->levels_active < 3)
 	{
@@ -431,14 +431,14 @@ void create_next_level(struct game_state *game, struct level *last_level)
 	{
 		for (int tile_x = 1; tile_x < new_level->width - 1; ++tile_x)
 		{
-			int entity_spawn_type = rand() % 20;	
-			if (entity_spawn_type == 0 && spawn_enemies)
-			{
-				add_enemy(game, new_level, tile_x, tile_y);
-			}
-			if (entity_spawn_type > 15 && spawn_blocks)
+			int entity_spawn_type = rand() % 20;
+			if (entity_spawn_type < 5 && spawn_blocks)
 			{
 				add_block(game, new_level, tile_x, tile_y);
+			}
+			else if (entity_spawn_type >= 5 && entity_spawn_type < 7 && spawn_enemies)
+			{
+				add_enemy(game, new_level, tile_x, tile_y);
 			}
 		}
 	}
@@ -566,7 +566,8 @@ void move_entity(struct game_state *game, struct entity *movable_entity, int ent
 						// TODO: make something like entity.hit_damage 
 						if ((movable_entity->type == entity_bullet || test_entity->type == entity_bullet) && hit)
 						{
-							if (--test_entity->health < 0)
+							test_entity->health -= 5;
+							if (test_entity->health < 0)
 							{
 								remove_entity(game, test_entity_index);
 							}
@@ -940,11 +941,11 @@ void main_game_loop(struct pixel_buffer *buffer, struct platform_memory memory, 
 			if (movable_entity->type == entity_enemy)
 			{
 				struct move_spec enemy_move_spec = get_default_move_spec();
-				enemy_move_spec.acceleration_scale = 25.0f;
-				enemy_move_spec.drag = 8.0f;
+				enemy_move_spec.acceleration_scale = 15.0f;
+				enemy_move_spec.drag = 4.0f;
 
 				if (movable_entity->level_index == player_entity->level_index)
-				{
+				{					
 					struct level_position entity_pos = movable_entity->position;
 
 					if (game->pulse < 20)
@@ -963,80 +964,8 @@ void main_game_loop(struct pixel_buffer *buffer, struct platform_memory memory, 
 					}
 
 					enemy_move_spec.acceleration_direction = get_position_vector(game, *movable_entity->current_level, entity_pos);
+
 					enemy_move_spec.acceleration_direction = normalise_vector2(enemy_move_spec.acceleration_direction);
-
-				}
-				else if (player_entity->level_index - movable_entity->level_index >= -3 && (int)player_entity->level_index - (int)movable_entity->level_index < 0)
-				{
-					struct vector2 enemy_to_entrance_vector = {0, 0};
-					if (get_position_tile_value(*movable_entity->current_level, movable_entity->position) == 3)
-					{
-						int entrance_x = movable_entity->current_level->entrance.x;
-						int entrance_y = movable_entity->current_level->entrance.y;
-
-						if (entrance_x == 0)
-						{
-							enemy_to_entrance_vector.x = -1;
-						}
-						else if (entrance_x == movable_entity->current_level->width - 1)
-						{
-							enemy_to_entrance_vector.x = 1;
-						}
-
-						if (entrance_y == 0)
-						{
-							enemy_to_entrance_vector.y = -1;
-						}
-						else if (entrance_y == movable_entity->current_level->height - 1)
-						{
-							enemy_to_entrance_vector.y = 1;
-						}
-					}
-					else
-					{
-						struct vector2 enemy_vector = vector2_from_position(game, movable_entity->position);
-						struct vector2 entrance_vector = vector2_from_tile_offset_center(game, movable_entity->current_level->entrance);
-						enemy_to_entrance_vector = subtract_vector2(entrance_vector, enemy_vector);
-						enemy_to_entrance_vector = normalise_vector2(enemy_to_entrance_vector);
-					}
-					enemy_move_spec.acceleration_direction.x = enemy_to_entrance_vector.x;
-					enemy_move_spec.acceleration_direction.y = enemy_to_entrance_vector.y;
-				}
-				else if (player_entity->level_index - movable_entity->level_index <= 3 && (int)player_entity->level_index - (int)movable_entity->level_index > 0)
-				{
-					struct vector2 enemy_to_exit_vector = {0, 0};
-					if (get_position_tile_value(*movable_entity->current_level, movable_entity->position) == 4)
-					{
-						int exit_x = movable_entity->current_level->exit.x;
-						int exit_y = movable_entity->current_level->exit.y;
-
-						if (exit_x == 0)
-						{
-							enemy_to_exit_vector.x = -1;
-						}
-						else if (exit_x == movable_entity->current_level->width - 1)
-						{
-							enemy_to_exit_vector.x = 1;
-						}
-
-						if (exit_y == 0)
-						{
-							enemy_to_exit_vector.y = -1;
-						}
-						else if (exit_y == movable_entity->current_level->height - 1)
-						{
-							enemy_to_exit_vector.y = 1;
-						}
-					}
-					else
-					{
-						struct vector2 enemy_vector = vector2_from_position(game, movable_entity->position);
-						struct vector2 exit_vector = vector2_from_tile_offset_center(game, movable_entity->current_level->exit);
-						enemy_to_exit_vector = subtract_vector2(exit_vector, enemy_vector);
-						enemy_to_exit_vector = normalise_vector2(enemy_to_exit_vector);
-					}
-					enemy_move_spec.acceleration_direction.x = enemy_to_exit_vector.x;
-					enemy_move_spec.acceleration_direction.y = enemy_to_exit_vector.y;
 				}
 
 				int last_tile_value = get_position_tile_value(*movable_entity->current_level, movable_entity->position);
