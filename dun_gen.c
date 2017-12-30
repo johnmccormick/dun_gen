@@ -623,44 +623,6 @@ void move_entity(struct game_state *game, struct entity *movable_entity, int ent
 			}
 		}
 
-			
-		for (struct index_block *block = other_level_first_block; block; block = block->next)
-		{
-			for (int index = 0; index < block->count; ++index)
-			{
-				int test_entity_index = block->index[index];
-				struct entity *test_entity = get_entity(game, test_entity_index);
-
-				if ((test_entity_index != entity_index) 
-					&& test_entity->collidable
-					&& test_entity_index != movable_entity->parent_index
-					&& test_entity->parent_index != entity_index)
-				{
-					if (!(movable_entity->type == entity_bullet && test_entity->type == entity_bullet))
-					{
-						struct entity collision_test_entity = *test_entity;
-						collision_test_entity.position.tile_x += offset.x;
-						collision_test_entity.position.tile_y += offset.y;
-
-						bool hit = false;
-						hit = test_entity_collision(game, *movable_entity, entity_position_delta, collision_test_entity, &reflection_normal, &t_min);
-
-						if ((movable_entity->type == entity_bullet || test_entity->type == entity_bullet) && hit)
-						{
-							if (test_entity->max_health > 0)
-							{
-								test_entity->health -= 1;
-								if (test_entity->health < 0)
-								{
-									remove_entity(game, test_entity_index);
-								}
-							}
-						}
-					}
-				}
-			}
-		}
-
 		movable_entity->position.pixel_x += (entity_position_delta.x * t_min);
 		movable_entity->position.pixel_y += (entity_position_delta.y * t_min);
 
