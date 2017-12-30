@@ -585,29 +585,28 @@ void move_entity(struct game_state *game, struct entity *movable_entity, int ent
 				//TODO: Translate conditionals into more compressed Projectile Spec struct
 				if ((test_entity_index != entity_index) 
 					&& test_entity->collidable
-					&& test_entity_index != movable_entity->parent_index
-					&& test_entity->parent_index != entity_index)
+					&& !(test_entity_index == movable_entity->parent_index || test_entity->parent_index == entity_index)
+					&& !(movable_entity->type == entity_bullet && test_entity->type == entity_bullet))
 				{
-					if (!(movable_entity->type == entity_bullet && test_entity->type == entity_bullet))
+					struct entity collision_test_entity = *test_entity;
+					collision_test_entity.position.tile_x += offset.x;
+					collision_test_entity.position.tile_y += offset.y;
+
+					bool hit = test_entity_collision(game, *movable_entity, entity_position_delta, collision_test_entity, &reflection_normal, &t_min);
+
+					// TODO: make something like entity.hit_damage 
+					if (movable_entity->type == entity_bullet && hit)
 					{
-						struct entity collision_test_entity = *test_entity;
-						collision_test_entity.position.tile_x += offset.x;
-						collision_test_entity.position.tile_y += offset.y;
-
-						bool hit = false;
-						hit = test_entity_collision(game, *movable_entity, entity_position_delta, collision_test_entity, &reflection_normal, &t_min);
-
-						// TODO: make something like entity.hit_damage 
-						if ((movable_entity->type == entity_bullet || test_entity->type == entity_bullet) && hit)
+						if (test_entity->max_health > 0)
 						{
-							if (test_entity->max_health > 0)
-							{
-								test_entity->health -= 1;
-								if (test_entity->health < 0)
-								{
-									remove_entity(game, test_entity_index);
-								}
-							}
+							test_entity->health -= 5;
+						}
+					}
+					if (test_entity->type == entity_bullet && hit)
+					{
+						if (movable_entity->max_health > 0)
+						{
+							movable_entity->health -= 5;
 						}
 					}
 				}
@@ -868,11 +867,6 @@ void main_game_loop(struct pixel_buffer *buffer, struct platform_memory memory, 
 				movable_entity->distance_remaining -= distance;
 
 				check_for_change_level(game, movable_entity, entity_index, last_tile_value);
-
-				if (movable_entity->distance_remaining < 0)
-				{
-					remove_entity(game, entity_index);
-				}
 			}
 		}
 
@@ -1222,6 +1216,19 @@ void main_game_loop(struct pixel_buffer *buffer, struct platform_memory memory, 
 				*pixel++ = 0x000000ff;
 			}
 			mouse_pointer += buffer->texture_pitch;
+		}
+	}
+
+	for (int entity_index = 0; entity_index < game->entity_count; ++entity_index)
+	{
+		struct entity *entity_to_remove = get_entity(game, entity_index);
+		if (entity_to_remove->type != entity_vacant)
+		{
+			if ((entity_to_remove->type == entity_bullet && entity_to_remove->distance_remaining < 0)
+				|| (entity_to_remove->max_health > 0 && entity_to_remove->health < 0))
+			{
+				remove_entity(game, entity_index);
+			}
 		}
 	}
 }

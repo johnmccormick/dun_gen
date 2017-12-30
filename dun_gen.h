@@ -71,6 +71,7 @@ struct entity
 
 	//TODO: Make union for entity specifics
 	int distance_remaining;
+	int collision_damage;
 	float bullet_refresh_remaining;
 
 	uint32_t colour;
