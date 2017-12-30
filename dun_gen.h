@@ -42,6 +42,7 @@ struct entity
 		entity_enemy,
 		entity_block,
 		entity_bullet,
+		entity_wall,
 	} type;
 
 	int pixel_width;
@@ -106,6 +107,6 @@ struct game_state
 
 	int next_render_depth;
 	int prev_render_depth;
-
-	uint pulse;
 };
+
+int add_wall(struct game_state *game, struct level *target_level, int tile_x, int tile_y);

@@ -1,20 +1,3 @@
-uint32_t get_tile_colour(int tile_value, float level_render_gradient, uint32_t *pixel)
-{
-	uint32_t colour = 0;
-
-	if (tile_value == 2 || tile_value == 3 || tile_value == 4)
-	{
-		colour = create_colour_argb(level_render_gradient, 0xff, 0xff, 0xff, pixel);
-	}
-
-	else if (tile_value == 1)
-	{
-		colour = create_colour_argb(level_render_gradient, 0x22, 0x22, 0x22, pixel);
-	}
-
-	return colour;
-}
-
 struct tile_offset calculate_next_offsets(struct level current_level)
 {
 	struct tile_offset level_offset = {0, 0}; 
@@ -43,8 +26,9 @@ struct tile_offset calculate_next_offsets(struct level current_level)
 	return level_offset;
 }
 
-struct level *generate_level(struct memory_arena *world_memory, struct level *prev_level)
+struct level *generate_level(struct game_state *game,  struct level *prev_level)
 {
+	struct memory_arena *world_memory = &game->world_memory;
 	struct level *new_level = push_struct(world_memory, sizeof(struct level));
 
 	// NOTE: Max w/h should always be >= 3 otherwise there can be no door
@@ -78,25 +62,10 @@ struct level *generate_level(struct memory_arena *world_memory, struct level *pr
 	new_level->block_map = push_struct(world_memory, (sizeof(int) * new_level->width * new_level->height));
 	new_level->vector_map = push_struct(world_memory, (sizeof(struct vector2) * (new_level->width) * (new_level->height)));
 
-	for (int y = 0; y < new_level->height; ++y)
-	{
-		for (int x = 0; x < new_level->width; ++x)
-		{
-			if (x == 0 || x == new_level->width - 1 || y == 0 || y == new_level->height - 1)
-				*(new_level->map + (y * new_level->width) + x) = 1;
-			else	
-				*(new_level->map + (y * new_level->width) + x) = 2;
-
-			*(new_level->block_map + (y * new_level->width) + x) = 0;
-			(new_level->vector_map + (y * new_level->width) + x)->x = 0;
-			(new_level->vector_map + (y * new_level->width) + x)->y = 0;
-		}
-	}
-
+	int new_entrance_side = -1;
 	int new_exit_side = -1;
 	if (prev_level)
 	{
-		int new_entrance_side = -1;
 		if ((prev_level)->exit.x == 0)
 		{
 			new_level->entrance.x = new_level->width - 1;
@@ -125,8 +94,6 @@ struct level *generate_level(struct memory_arena *world_memory, struct level *pr
 		{
 			printf("Could not dermine entrance side of previous level\n");
 		}
-
-		*(new_level->map + (new_level->width * new_level->entrance.y) + (new_level->entrance.x)) = 3;
 
 		if (new_entrance_side >= 0 && new_entrance_side < 4)
 		{
@@ -169,7 +136,37 @@ struct level *generate_level(struct memory_arena *world_memory, struct level *pr
 		printf("Recieved bad exit side\n");
 	}
 
-	*(new_level->map + (new_level->width * new_level->exit.y) + (new_level->exit.x)) = 4;
+	struct tile_offset entrance = new_level->entrance;
+	struct tile_offset exit = new_level->exit;
+
+	for (int y = 0; y < new_level->height; ++y)
+	{
+		for (int x = 0; x < new_level->width; ++x)
+		{
+			if (x == 0 || x == new_level->width - 1 || y == 0 || y == new_level->height - 1)
+			{
+				if (new_entrance_side >= 0 && x == entrance.x && y == entrance.y)
+				{
+					*(new_level->map + (y * new_level->width) + x) = 3;
+				}
+				else if (x == exit.x && y == exit.y)
+				{
+					*(new_level->map + (y * new_level->width) + x) = 4;
+				}
+				else
+				{
+					*(new_level->map + (y * new_level->width) + x) = 1;
+					add_wall(game, new_level, x, y);
+				}
+			}
+			else	
+				*(new_level->map + (y * new_level->width) + x) = 2;
+
+			*(new_level->block_map + (y * new_level->width) + x) = 0;
+			(new_level->vector_map + (y * new_level->width) + x)->x = 0;
+			(new_level->vector_map + (y * new_level->width) + x)->y = 0;
+		}
+	}
 
 	return new_level;
 }

@@ -13,14 +13,13 @@ struct tile_offset
 	int y;
 };
 
-// enum tile_type
-// {
-// 	tile_null,
-// 	tile_entrance,
-// 	tile_exit,
-// 	tile_next_render_trigger,
-// 	tile_prev_render_trigger,
-// };
+enum tile_type
+{
+	tile_floor,
+	tile_wall,
+	tile_entrance,
+	tile_exit,
+};
 
 struct index_block
 {
