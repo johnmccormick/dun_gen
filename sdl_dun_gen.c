@@ -43,7 +43,7 @@ int main ()
     }
 
     SDL_Window *window = SDL_CreateWindow(
-        "Map Generator",
+        "dun_gen",
         SDL_WINDOWPOS_UNDEFINED,
         SDL_WINDOWPOS_UNDEFINED,
         win_width, win_height,

@@ -332,8 +332,9 @@ struct heatmap_node
 	struct heatmap_node *next;
 };
 
-void calculate_vector_field(struct level level_to_map, int tile_x, int tile_y, struct pixel_buffer *buffer, bool render_output)
+void calculate_vector_field(struct level level_to_map, int tile_x, int tile_y)
 {
+	assert(tile_x >= 0 && tile_y >= 0);
 	int height = level_to_map.height;
 	int width = level_to_map.width;
 
@@ -492,38 +493,38 @@ void calculate_vector_field(struct level level_to_map, int tile_x, int tile_y, s
 	}
 
 
-	if (render_output)
-	{
-		uint8_t *buffer_pixels = buffer->pixels;
-		uint8_t *row_pixels = buffer->pixels;
-		uint8_t *column_pixels = buffer->pixels;
+	// if (render_output)
+	// {
+	// 	uint8_t *buffer_pixels = buffer->pixels;
+	// 	uint8_t *row_pixels = buffer->pixels;
+	// 	uint8_t *column_pixels = buffer->pixels;
 
-		int size = 10;
+	// 	int size = 10;
 
-		for (int y = 0; y < height; ++y)
-		{
-			column_pixels = row_pixels;
-			for (int x = 0; x < width; ++x)
-			{
-				buffer_pixels = column_pixels;
-				for (int py = 0; py < size; ++py)
-				{
-					uint32_t *pixel = (uint32_t *)buffer_pixels;
-					for (int px = 0; px < size; ++px)
-					{
-						int r = 0, g = 0, b = 0;
-						b = 255 - (heatmap_graph[y][x].distance * 10);
-						b = b >= 0 && b ? b : 0;
-						b = b <= 255 && b ? b : 0;
-						*pixel++ = create_colour_argb(1, r, g, b, 0);
-					}
-					buffer_pixels += buffer->texture_pitch;
-				}
-				column_pixels += buffer->bytes_per_pixel * size;
-			}
-			row_pixels += buffer->texture_pitch * size;
-		}
-	}
+	// 	for (int y = 0; y < height; ++y)
+	// 	{
+	// 		column_pixels = row_pixels;
+	// 		for (int x = 0; x < width; ++x)
+	// 		{
+	// 			buffer_pixels = column_pixels;
+	// 			for (int py = 0; py < size; ++py)
+	// 			{
+	// 				uint32_t *pixel = (uint32_t *)buffer_pixels;
+	// 				for (int px = 0; px < size; ++px)
+	// 				{
+	// 					int r = 0, g = 0, b = 0;
+	// 					b = 255 - (heatmap_graph[y][x].distance * 10);
+	// 					b = b >= 0 && b ? b : 0;
+	// 					b = b <= 255 && b ? b : 0;
+	// 					*pixel++ = create_colour_argb(1, r, g, b, 0);
+	// 				}
+	// 				buffer_pixels += buffer->texture_pitch;
+	// 			}
+	// 			column_pixels += buffer->bytes_per_pixel * size;
+	// 		}
+	// 		row_pixels += buffer->texture_pitch * size;
+	// 	}
+	// }
 }
 
 struct vector2 get_position_vector(struct game_state *game, struct level entity_level, struct level_position position)

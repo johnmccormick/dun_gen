@@ -212,6 +212,12 @@ struct entity *get_entity(struct game_state *game, uint entity_index)
 	return entity_result;
 }
 
+//TODO: get_player_entities()
+struct entity *get_player_entity(struct game_state *game)
+{
+	return get_entity(game, game->player_entity_index[0]);
+}
+
 int create_entity(struct game_state *game, struct level *target_level, enum entity_type type, int width, int height, bool collidable, uint32_t colour)
 {
 	int index;
@@ -401,6 +407,12 @@ void remove_entity(struct game_state *game, uint entity_index)
 	if (target_entity->type == entity_block)
 	{
 		*(entity_level->block_map + (target_entity->position.tile_y * entity_level->width) + target_entity->position.tile_x) = 0;
+		//TODO: Create refresh vector field function?
+		if (entity_level == game->camera_level)
+		{
+			struct entity *player_entity = get_player_entity(game);
+			calculate_vector_field(*player_entity->current_level, player_entity->position.tile_x, player_entity->position.tile_y);
+		}
 	}
 
 	target_entity->type = entity_vacant;
@@ -423,7 +435,7 @@ void create_next_level(struct game_state *game, struct level *last_level)
 	bool spawn_enemies = (rand() % 2) > 0;
 	bool spawn_blocks = (rand() % 7) > 0;
 	
-	if (game->levels_active < 3)
+	if (game->levels_active < 2)
 	{
 		spawn_enemies = false;
 	}
@@ -444,7 +456,10 @@ void create_next_level(struct game_state *game, struct level *last_level)
 		}
 	}
 
-	calculate_vector_field(*new_level, new_level->entrance.x, new_level->entrance.y, 0, 0);
+	if (rand() % 2 > 0)
+	{
+		calculate_vector_field(*new_level, new_level->entrance.x, new_level->entrance.y);
+	}
 
 	++game->levels_active;
 }
@@ -863,10 +878,10 @@ void main_game_loop(struct pixel_buffer *buffer, struct platform_memory memory, 
 		game->paused = !game->paused;
 	}
 
-	if (input.buttons.keyboard_v)
-	{
-		game->show_vector_field = !game->show_vector_field;
-	}
+	// if (input.buttons.keyboard_v)
+	// {
+	// 	game->show_vector_field = !game->show_vector_field;
+	// }
 
 	// TODO: loop over MAX_PLAYERS once individualised player code is written
 	int player_index = 0;
@@ -929,9 +944,15 @@ void main_game_loop(struct pixel_buffer *buffer, struct platform_memory memory, 
 				player_move_spec.acceleration_scale *= 1.4;
 			}
 
-			int last_tile_value = get_position_tile_value(*player_entity->current_level, player_entity->position);
+			struct level_position last_position = player_entity->position;
 			move_entity(game, player_entity, player_entity_index, player_move_spec, delta_t);
+			int last_tile_value = get_position_tile_value(*player_entity->current_level, last_position);
 			check_for_change_level(game, player_entity, player_entity_index, last_tile_value);
+			
+			if ((player_entity->position.tile_x != last_position.tile_x) || (player_entity->position.tile_y != last_position.tile_y))
+			{
+				calculate_vector_field(*player_entity->current_level, player_entity->position.tile_x, player_entity->position.tile_y);
+			}
 
 			if (!player_entity->current_level->next_level)
 			{
@@ -953,29 +974,26 @@ void main_game_loop(struct pixel_buffer *buffer, struct platform_memory memory, 
 				struct move_spec enemy_move_spec = get_default_move_spec();
 				enemy_move_spec.acceleration_scale = 15.0f;
 				enemy_move_spec.drag = 4.0f;
+				
+				struct level_position entity_pos = movable_entity->position;
 
-				if (movable_entity->level_index == player_entity->level_index)
-				{					
-					struct level_position entity_pos = movable_entity->position;
-
-					if (game->pulse < 20)
-					{
-						entity_pos.pixel_x -= (float)movable_entity->pixel_width*0.5f;
-						entity_pos.pixel_y -= (float)movable_entity->pixel_height*0.5f;
-					}
-					else if (game->pulse < 40)
-					{
-						// Use center position
-					}
-					else if (game->pulse < 60)
-					{
-						entity_pos.pixel_x += (float)movable_entity->pixel_width*0.5f;
-						entity_pos.pixel_y += (float)movable_entity->pixel_height*0.5f;
-					}
-
-					enemy_move_spec.acceleration_direction = get_position_vector(game, *movable_entity->current_level, entity_pos);
-					enemy_move_spec.acceleration_direction = normalise_vector2(enemy_move_spec.acceleration_direction);
+				if (game->pulse < 20)
+				{
+					entity_pos.pixel_x -= (float)movable_entity->pixel_width*0.5f;
+					entity_pos.pixel_y -= (float)movable_entity->pixel_height*0.5f;
 				}
+				else if (game->pulse < 40)
+				{
+					// Use center position
+				}
+				else if (game->pulse < 60)
+				{
+					entity_pos.pixel_x += (float)movable_entity->pixel_width*0.5f;
+					entity_pos.pixel_y += (float)movable_entity->pixel_height*0.5f;
+				}
+
+				enemy_move_spec.acceleration_direction = get_position_vector(game, *movable_entity->current_level, entity_pos);
+				enemy_move_spec.acceleration_direction = normalise_vector2(enemy_move_spec.acceleration_direction);
 
 				int last_tile_value = get_position_tile_value(*movable_entity->current_level, movable_entity->position);
 				
@@ -1027,6 +1045,11 @@ void main_game_loop(struct pixel_buffer *buffer, struct platform_memory memory, 
 			game->camera_level->next_level->render_transition = decrement_to_zero(game->camera_level->next_level->render_transition, input.frame_t);
 		}
 
+		if (game->camera_level->next_level->render_transition > game->level_transition_time*0.3f)
+		{
+			calculate_vector_field(*player_entity->current_level->next_level, player_entity->current_level->next_level->entrance.x, player_entity->current_level->next_level->entrance.y);
+		}
+
 		int loop_depth = 0;
 		int deepest_render = 0;
 		struct level *most_next_level = game->camera_level->next_level;
@@ -1061,6 +1084,11 @@ void main_game_loop(struct pixel_buffer *buffer, struct platform_memory memory, 
 			else
 			{
 				game->camera_level->prev_level->render_transition = decrement_to_zero(game->camera_level->prev_level->render_transition, input.frame_t);
+			}
+
+			if (game->camera_level->prev_level->render_transition > game->level_transition_time*0.3f)
+			{
+				calculate_vector_field(*player_entity->current_level->prev_level, player_entity->current_level->prev_level->exit.x, player_entity->current_level->prev_level->exit.y);
 			}
 		}
 
@@ -1350,11 +1378,6 @@ void main_game_loop(struct pixel_buffer *buffer, struct platform_memory memory, 
 				*pixel++ = 0x000000ff;
 			}
 			mouse_pointer += buffer->texture_pitch;
-		}
-
-		if ((game->pulse) % 20)
-		{
-			calculate_vector_field((*game->camera_level), player_entity->position.tile_x, player_entity->position.tile_y, buffer, game->show_vector_field);
 		}
 
 		game->pulse = ++game->pulse > 60 ? 0 : game->pulse;
