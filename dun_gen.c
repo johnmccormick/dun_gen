@@ -432,7 +432,7 @@ void create_next_level(struct game_state *game, struct level *last_level)
 
 	last_level->next_offset = calculate_next_offsets(*last_level);
 
-	bool spawn_enemies = (rand() % 2) > 0;
+	bool spawn_enemies = true; //(rand() % 2) > 0;
 	bool spawn_blocks = (rand() % 7) > 0;
 	
 	if (game->levels_active < 2)
@@ -977,22 +977,30 @@ void main_game_loop(struct pixel_buffer *buffer, struct platform_memory memory, 
 				
 				struct level_position entity_pos = movable_entity->position;
 
-				if (game->pulse < 20)
+				struct vector2 tile_vector;
+				if (tile_vector.x == 0 || tile_vector.y == 0)
 				{
-					entity_pos.pixel_x -= (float)movable_entity->pixel_width*0.5f;
-					entity_pos.pixel_y -= (float)movable_entity->pixel_height*0.5f;
+					struct level_position entity_pos_top_left = entity_pos;
+					struct level_position entity_pos_bottom_right = entity_pos;
+
+					entity_pos_top_left.pixel_x -= ((float)movable_entity->pixel_width*0.5f) - 0.002;
+					entity_pos_top_left.pixel_y -= ((float)movable_entity->pixel_height*0.5f) - 0.002;
+
+					entity_pos_bottom_right.pixel_x += ((float)movable_entity->pixel_width*0.5f) + 0.002;
+					entity_pos_bottom_right.pixel_y += ((float)movable_entity->pixel_height*0.5f) + 0.002;
+	
+					struct vector2 vectors[2];
+					vectors[0] = get_position_vector(game, *movable_entity->current_level, entity_pos_top_left);
+					vectors[1] = get_position_vector(game, *movable_entity->current_level, entity_pos_bottom_right);
+
+					tile_vector = add_vectors(vectors, 2);
 				}
-				else if (game->pulse < 40)
+				else
 				{
-					// Use center position
-				}
-				else if (game->pulse < 60)
-				{
-					entity_pos.pixel_x += (float)movable_entity->pixel_width*0.5f;
-					entity_pos.pixel_y += (float)movable_entity->pixel_height*0.5f;
+					tile_vector = get_position_vector(game, *movable_entity->current_level, entity_pos);
 				}
 
-				enemy_move_spec.acceleration_direction = get_position_vector(game, *movable_entity->current_level, entity_pos);
+				enemy_move_spec.acceleration_direction = tile_vector;
 				enemy_move_spec.acceleration_direction = normalise_vector2(enemy_move_spec.acceleration_direction);
 
 				int last_tile_value = get_position_tile_value(*movable_entity->current_level, movable_entity->position);
@@ -1379,7 +1387,5 @@ void main_game_loop(struct pixel_buffer *buffer, struct platform_memory memory, 
 			}
 			mouse_pointer += buffer->texture_pitch;
 		}
-
-		game->pulse = ++game->pulse > 60 ? 0 : game->pulse;
 	}
 }
