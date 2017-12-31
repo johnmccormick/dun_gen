@@ -177,7 +177,7 @@ void change_entity_level(struct game_state *game, uint entity_index, struct leve
 
 		if (new_level)
 		{
-			assert(game->entities[entity_index].type != entity_vacant);
+			assert(game->entities[entity_index].type != bardo_entity);
 			struct index_block *block = &new_level->first_block;
 			if (block->count == array_count(block->index))
 			{
@@ -221,9 +221,9 @@ struct entity *get_player_entity(struct game_state *game)
 int create_entity(struct game_state *game, struct level *target_level, enum entity_type type, int width, int height, bool collidable, uint32_t colour)
 {
 	int index;
-	if (game->vacant_entity_count > 0)
+	if (game->entity_bardo_count > 0)
 	{
-		index = game->vacant_entities[--game->vacant_entity_count];
+		index = game->entity_bardo[--game->entity_bardo_count];
 	}
 	else
 	{
@@ -245,6 +245,8 @@ int create_entity(struct game_state *game, struct level *target_level, enum enti
 
 	new_entity->max_health = 0;
 	new_entity->health = 0;
+
+	new_entity->flags = entity_alive;
 
 	new_entity->health_render_type = health_null;
 
@@ -366,7 +368,7 @@ int add_block(struct game_state *game, struct level *target_level, int tile_x, i
 
 	block->health_render_type = health_fade;
 
-	*(target_level->block_map + (tile_y * target_level->width) + tile_x) = 1;
+	*(target_level->tile_map + (tile_y * target_level->width) + tile_x) = 1;
 
 	return index;
 }
@@ -425,29 +427,15 @@ int add_bullet(struct game_state *game, struct level *target_level, int parent_i
 	return index;
 }
 
-void remove_entity(struct game_state *game, uint entity_index)
+void kill_entity(struct game_state *game, uint entity_index)
 {
-	struct entity *target_entity = get_entity(game, entity_index);
-
-	struct level *entity_level = target_entity->current_level;
-
-	if (target_entity->type == entity_block)
+	struct entity *entity_to_kill = get_entity(game, entity_index);
+	if (entity_to_kill->flags != entity_dead)
 	{
-		*(entity_level->block_map + (target_entity->position.tile_y * entity_level->width) + target_entity->position.tile_x) = 0;
-		//TODO: Create refresh vector field function?
-		if (entity_level == game->camera_level)
-		{
-			struct entity *player_entity = get_player_entity(game);
-			calculate_vector_field(*player_entity->current_level, player_entity->position.tile_x, player_entity->position.tile_y);
-		}
+		entity_to_kill->flags = entity_dead;
+		assert(game->dead_entity_count + 1 < array_count(game->dead_entities));
+		game->dead_entities[game->dead_entity_count++] = entity_index;
 	}
-
-	target_entity->type = entity_vacant;
-
-	change_entity_level(game, entity_index, entity_level, 0);
-
-	assert(game->vacant_entity_count + 1 < array_count(game->vacant_entities));
-	game->vacant_entities[game->vacant_entity_count++] = entity_index;
 }
 
 void create_next_level(struct game_state *game, struct level *last_level)
@@ -600,6 +588,10 @@ void move_entity(struct game_state *game, struct entity *movable_entity, int ent
 						if (test_entity->max_health > 0)
 						{
 							test_entity->health -= 5;
+							if (test_entity->health < 0)
+							{
+								kill_entity(game, test_entity_index);
+							}
 						}
 					}
 					if (test_entity->type == entity_bullet && hit)
@@ -607,6 +599,11 @@ void move_entity(struct game_state *game, struct entity *movable_entity, int ent
 						if (movable_entity->max_health > 0)
 						{
 							movable_entity->health -= 5;
+							if (movable_entity->health < 0)
+							{
+								kill_entity(game, entity_index);
+							}
+
 						}
 					}
 				}
@@ -650,36 +647,29 @@ void move_entity(struct game_state *game, struct entity *movable_entity, int ent
 
 bool check_for_change_level(struct game_state *game, struct entity *movable_entity, int entity_index, int last_tile_value)
 {
-	if (movable_entity->type != entity_vacant)
+	bool out_of_bounds = is_out_of_bounds_position(*movable_entity->current_level, movable_entity->position);
+
+	if (last_tile_value == 3 && out_of_bounds)
 	{
-		bool out_of_bounds = is_out_of_bounds_position(*movable_entity->current_level, movable_entity->position);
-
-		if (last_tile_value == 3 && out_of_bounds)
+		change_entity_level(game, entity_index, movable_entity->current_level, movable_entity->current_level->prev_level);
+		movable_entity->position.tile_x = movable_entity->current_level->exit.x;
+		movable_entity->position.tile_y = movable_entity->current_level->exit.y;
+		--movable_entity->level_index;
+	}
+	else if (last_tile_value == 4 && out_of_bounds)
+	{
+		if (!movable_entity->current_level->next_level)
 		{
-			change_entity_level(game, entity_index, movable_entity->current_level, movable_entity->current_level->prev_level);
-			movable_entity->position.tile_x = movable_entity->current_level->exit.x;
-			movable_entity->position.tile_y = movable_entity->current_level->exit.y;
-			--movable_entity->level_index;
-		}
-		else if (last_tile_value == 4 && out_of_bounds)
-		{
-			if (!movable_entity->current_level->next_level)
-			{
-				create_next_level(game, movable_entity->current_level);
-			}
-
-			change_entity_level(game, entity_index, movable_entity->current_level, movable_entity->current_level->next_level);
-			movable_entity->position.tile_x = movable_entity->current_level->entrance.x;
-			movable_entity->position.tile_y = movable_entity->current_level->entrance.y;
-			++movable_entity->level_index;
+			create_next_level(game, movable_entity->current_level);
 		}
 
-		return out_of_bounds;
+		change_entity_level(game, entity_index, movable_entity->current_level, movable_entity->current_level->next_level);
+		movable_entity->position.tile_x = movable_entity->current_level->entrance.x;
+		movable_entity->position.tile_y = movable_entity->current_level->entrance.y;
+		++movable_entity->level_index;
 	}
-	else
-	{
-		return 0;
-	}
+
+	return out_of_bounds;
 }
 
 void main_game_loop(struct pixel_buffer *buffer, struct platform_memory memory, struct input_events input)
@@ -703,7 +693,11 @@ void main_game_loop(struct pixel_buffer *buffer, struct platform_memory memory, 
 
 		//TODO: Player addition dependent on controllers?
 		game->player_entity_index[0] = add_player(game, game->camera_level);
-		get_entity(game, game->player_entity_index[0])->level_index = 0;
+		
+		struct entity *player_0 = get_entity(game, game->player_entity_index[0]);
+		player_0->level_index = 0;
+
+		calculate_vector_field(*game->camera_level, player_0->position.tile_x, player_0->position.tile_y);
 
 		game->initialised = true;
 	}
@@ -711,6 +705,11 @@ void main_game_loop(struct pixel_buffer *buffer, struct platform_memory memory, 
 	if (input.buttons.keyboard_space)
 	{
 		game->paused = !game->paused;
+	}
+
+	if (input.buttons.keyboard_v)
+	{
+		game->debug_output = !game->debug_output;
 	}
 
 	// TODO: loop over MAX_PLAYERS once individualised player code is written
@@ -807,40 +806,7 @@ void main_game_loop(struct pixel_buffer *buffer, struct platform_memory memory, 
 				
 				struct level_position entity_pos = movable_entity->position;
 
-				struct vector2 tile_vector;
-				if (tile_vector.x == 0 || tile_vector.y == 0)
-				{
-					struct level_position entity_pos_top_left = entity_pos;
-					struct level_position entity_pos_top_right = entity_pos;
-					struct level_position entity_pos_bottom_left = entity_pos;
-					struct level_position entity_pos_bottom_right = entity_pos;
-
-					entity_pos_top_left.pixel_x -= ((float)movable_entity->pixel_width*0.5f) - 0.002;
-					entity_pos_top_left.pixel_y -= ((float)movable_entity->pixel_height*0.5f) - 0.002;
-
-					entity_pos_top_right.pixel_x += ((float)movable_entity->pixel_width*0.5f) + 0.002;
-					entity_pos_top_right.pixel_y -= ((float)movable_entity->pixel_height*0.5f) - 0.002;
-
-					entity_pos_bottom_left.pixel_x -= ((float)movable_entity->pixel_width*0.5f) - 0.002;
-					entity_pos_bottom_left.pixel_y += ((float)movable_entity->pixel_height*0.5f) + 0.002;
-
-					entity_pos_bottom_right.pixel_x += ((float)movable_entity->pixel_width*0.5f) + 0.002;
-					entity_pos_bottom_right.pixel_y += ((float)movable_entity->pixel_height*0.5f) + 0.002;
-	
-					struct vector2 vectors[4];
-					vectors[0] = get_position_vector(game, *movable_entity->current_level, entity_pos_top_left);
-					vectors[1] = get_position_vector(game, *movable_entity->current_level, entity_pos_top_right);
-					vectors[2] = get_position_vector(game, *movable_entity->current_level, entity_pos_bottom_left);
-					vectors[3] = get_position_vector(game, *movable_entity->current_level, entity_pos_bottom_right);
-
-					tile_vector = add_vectors(vectors, 4);
-				}
-				else
-				{
-					tile_vector = get_position_vector(game, *movable_entity->current_level, entity_pos);
-				}
-
-				enemy_move_spec.acceleration_direction = tile_vector;
+				enemy_move_spec.acceleration_direction = get_position_vector(game, *movable_entity->current_level, entity_pos);
 				enemy_move_spec.acceleration_direction = normalise_vector2(enemy_move_spec.acceleration_direction);
 
 				int last_tile_value = get_position_tile_value(*movable_entity->current_level, movable_entity->position);
@@ -867,6 +833,11 @@ void main_game_loop(struct pixel_buffer *buffer, struct platform_memory memory, 
 				movable_entity->distance_remaining -= distance;
 
 				check_for_change_level(game, movable_entity, entity_index, last_tile_value);
+
+				if (movable_entity->distance_remaining < 0)
+				{
+					kill_entity(game, entity_index);
+				}
 			}
 		}
 
@@ -1147,13 +1118,13 @@ void main_game_loop(struct pixel_buffer *buffer, struct platform_memory memory, 
 
 						for (int y = min_y; y < max_y; ++y)
 						{
-								uint32_t *pixel = (uint32_t *)entity_pointer;
-								for (int x = min_x; x < max_x; ++x)
-								{
-									uint32_t colour = create_colour_32bit(entity_render_gradient, entity_to_render.colour, pixel);
-									*pixel++ = colour;
-								}
-								entity_pointer += buffer->texture_pitch;
+							uint32_t *pixel = (uint32_t *)entity_pointer;
+							for (int x = min_x; x < max_x; ++x)
+							{
+								uint32_t colour = create_colour_32bit(entity_render_gradient, entity_to_render.colour, pixel);
+								*pixel++ = colour;
+							}
+							entity_pointer += buffer->texture_pitch;
 						}
 
 						if (entity_to_render.health_render_type == health_bar)
@@ -1219,16 +1190,73 @@ void main_game_loop(struct pixel_buffer *buffer, struct platform_memory memory, 
 		}
 	}
 
-	for (int entity_index = 0; entity_index < game->entity_count; ++entity_index)
+	for (int index = 0; index < game->dead_entity_count; ++index)
 	{
-		struct entity *entity_to_remove = get_entity(game, entity_index);
-		if (entity_to_remove->type != entity_vacant)
+		int entity_index = game->dead_entities[index];
+		struct entity *target_entity = get_entity(game, entity_index);
+
+		assert(target_entity->flags == entity_dead);
+		assert(target_entity->type != bardo_entity);
+
+		struct level *entity_level = target_entity->current_level;
+
+		if (target_entity->type == entity_block)
 		{
-			if ((entity_to_remove->type == entity_bullet && entity_to_remove->distance_remaining < 0)
-				|| (entity_to_remove->max_health > 0 && entity_to_remove->health < 0))
+			*(entity_level->tile_map + (target_entity->position.tile_y * entity_level->width) + target_entity->position.tile_x) = 2;
+			//TODO: Create refresh vector field function?
+			if (entity_level == game->camera_level)
 			{
-				remove_entity(game, entity_index);
+				struct entity *player_entity = get_player_entity(game);
+				calculate_vector_field(*player_entity->current_level, player_entity->position.tile_x, player_entity->position.tile_y);
 			}
+		}
+
+		target_entity->type = bardo_entity;
+
+		change_entity_level(game, entity_index, entity_level, 0);
+
+		assert(game->entity_bardo_count + 1 < array_count(game->entity_bardo));
+		game->entity_bardo[game->entity_bardo_count++] = entity_index;
+	}
+
+	game->dead_entity_count = 0;
+
+	if (game->debug_output)
+	{
+		int width = game->camera_level->width;
+		int height = game->camera_level->height;
+
+		struct heatmap_node *heat_map = game->camera_level->heat_map;
+
+		uint8_t *buffer_pixels = buffer->pixels;
+		uint8_t *row_pixels = buffer->pixels;
+		uint8_t *column_pixels = buffer->pixels;
+
+		int size = 10;
+
+		for (int y = 0; y < height; ++y)
+		{
+			column_pixels = row_pixels;
+			for (int x = 0; x < width; ++x)
+			{
+				buffer_pixels = column_pixels;
+				for (int py = 0; py < size; ++py)
+				{
+					uint32_t *pixel = (uint32_t *)buffer_pixels;
+					for (int px = 0; px < size; ++px)
+					{
+						int r = 0, g = 0, b = 0;
+						b = 255 - ((heat_map + (width * y) + x)->distance * 10);
+						b = b >= 0 && b ? b : 0;
+						b = b <= 255 && b ? b : 0;
+						*pixel++ = create_colour_argb(1, r, g, b, 0);
+					}
+					buffer_pixels += buffer->texture_pitch;
+				}
+				column_pixels += buffer->bytes_per_pixel * size;
+				printf("x %i y %i dist %i\n", x, y, ((heat_map + (width * y) + x)->distance));
+			}
+			row_pixels += buffer->texture_pitch * size;
 		}
 	}
 }

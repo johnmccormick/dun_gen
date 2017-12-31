@@ -28,6 +28,15 @@ struct index_block
 	struct index_block *next;
 };
 
+struct heatmap_node
+{
+	int tile_x, tile_y;
+	int distance;
+	bool calculated;
+	struct vector2 vector;
+	struct heatmap_node *next;
+};
+
 struct level
 {
 	uint index;
@@ -35,8 +44,8 @@ struct level
 	int width;
 	int height;	
 	
-	int *map;
-	int *block_map;
+	int *tile_map;
+	struct heatmap_node *heat_map;
 	struct vector2 *vector_map;
 
 	struct tile_offset entrance;

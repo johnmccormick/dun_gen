@@ -4,8 +4,8 @@
 #include <sys/time.h>
 
 #include "dun_gen_platform.h"
-#include "dun_gen_tile.h"
 #include "dun_gen_math.h"
+#include "dun_gen_tile.h"
 
 struct memory_arena
 {
@@ -37,12 +37,12 @@ struct entity
 	enum entity_type
 	{
 		entity_null,
-		entity_vacant,
 		entity_player,
 		entity_enemy,
 		entity_block,
 		entity_bullet,
 		entity_wall,
+		bardo_entity,
 	} type;
 
 	int pixel_width;
@@ -61,6 +61,12 @@ struct entity
 	// (Invincible/take extra dmg?)
 	int max_health;
 	int health;
+
+	enum
+	{
+		entity_alive,
+		entity_dead,
+	} flags;
 
 	enum
 	{
@@ -83,7 +89,6 @@ struct game_state
 {
 	bool initialised;
 	bool paused;
-	bool show_vector_field;
 
 	struct memory_arena world_memory;
 
@@ -93,8 +98,11 @@ struct game_state
 	int entity_count;
 	struct entity entities[65536];
 
-	int vacant_entity_count;
-	int vacant_entities[4096];
+	int dead_entity_count;
+	int dead_entities[512];
+
+	int entity_bardo_count;
+	int entity_bardo[16384];
 
 	int tile_size;
 	float level_transition_time;
@@ -108,6 +116,8 @@ struct game_state
 
 	int next_render_depth;
 	int prev_render_depth;
+
+	bool debug_output;
 };
 
 int add_wall(struct game_state *game, struct level *target_level, int tile_x, int tile_y);
