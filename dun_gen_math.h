@@ -1,3 +1,5 @@
+#define INT_MAX 32767
+
 struct vector2
 {
 	float x;

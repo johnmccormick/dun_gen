@@ -800,17 +800,17 @@ void main_game_loop(struct pixel_buffer *buffer, struct platform_memory memory, 
 
 			if (movable_entity->type == entity_enemy)
 			{
+				int last_tile_value = get_position_tile_value(*movable_entity->current_level, movable_entity->position);
+
 				struct move_spec enemy_move_spec = get_default_move_spec();
-				enemy_move_spec.acceleration_scale = 30.0f;
-				enemy_move_spec.drag = 8.0f;
+				enemy_move_spec.acceleration_scale = 40.0f;
+				enemy_move_spec.drag = 12.0f;
 				
 				struct level_position entity_pos = movable_entity->position;
 
 				enemy_move_spec.acceleration_direction = get_position_vector(game, *movable_entity->current_level, entity_pos);
 				enemy_move_spec.acceleration_direction = normalise_vector2(enemy_move_spec.acceleration_direction);
 
-				int last_tile_value = get_position_tile_value(*movable_entity->current_level, movable_entity->position);
-				
 				move_entity(game, movable_entity, entity_index, enemy_move_spec, delta_t);
 
 				check_for_change_level(game, movable_entity, entity_index, last_tile_value);
@@ -1254,9 +1254,9 @@ void main_game_loop(struct pixel_buffer *buffer, struct platform_memory memory, 
 					buffer_pixels += buffer->texture_pitch;
 				}
 				column_pixels += buffer->bytes_per_pixel * size;
-				printf("x %i y %i dist %i\n", x, y, ((heat_map + (width * y) + x)->distance));
 			}
 			row_pixels += buffer->texture_pitch * size;
 		}
 	}
+
 }

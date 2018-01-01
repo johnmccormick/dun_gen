@@ -222,6 +222,19 @@ int get_position_tile_value(struct level current_level, struct level_position po
 	return value;
 }
 
+int get_heatmap_distance_value(struct level current_level, int tile_x, int tile_y)
+{
+	if ((tile_x >= 0 && tile_x < current_level.width) && (tile_y >= 0 && tile_y < current_level.height))
+	{
+		int value = (current_level.heat_map + tile_x + (tile_y * current_level.width))->distance;
+		return value;
+	}
+	else
+	{
+		return INT_MAX;
+	}
+}
+
 bool is_collision_position(struct game_state *game, struct level current_level, struct level_position player_position)
 {
 	struct level_position position_result;
@@ -323,7 +336,7 @@ void calculate_vector_field(struct level level_to_map, int tile_x, int tile_y)
 		for (int x = 0; x < width; ++x)
 		{
 			(heat_map + ((y * width) + x))->calculated = false;
-			(heat_map + ((y * width) + x))->distance = -1;
+			(heat_map + ((y * width) + x))->distance = INT_MAX;
 			(heat_map + ((y * width) + x))->next = NULL;
 			(heat_map + ((y * width) + x))->tile_x = x;
 			(heat_map + ((y * width) + x))->tile_y = y;
@@ -392,6 +405,8 @@ void calculate_vector_field(struct level level_to_map, int tile_x, int tile_y)
 				int dist_top;
 				int dist_bottom;
 
+				struct tile_offset walls = {0, 0};
+
 				if (x - 1 >= 0 && (heat_map + (y * width) + x - 1)->calculated == true)
 				{
 					dist_left = (heat_map + (y * width) + x - 1)->distance;
@@ -399,6 +414,9 @@ void calculate_vector_field(struct level level_to_map, int tile_x, int tile_y)
 				else
 				{
 					dist_left = (heat_map + (y * width) + x)->distance;
+
+					if (x - 1 >= 0)
+						walls.x = -1;
 				}
 
 				if (x + 1 < width && (heat_map + (y * width) + x + 1)->calculated == true)
@@ -408,6 +426,9 @@ void calculate_vector_field(struct level level_to_map, int tile_x, int tile_y)
 				else
 				{
 					dist_right = (heat_map + (y * width) + x)->distance;
+
+					if (x + 1 < width)
+						walls.x = 1;
 				}
 
 				if (y - 1 >= 0 && (heat_map + ((y - 1) * width) + x)->calculated == true)
@@ -417,6 +438,9 @@ void calculate_vector_field(struct level level_to_map, int tile_x, int tile_y)
 				else
 				{
 					dist_top = (heat_map + (y * width) + x)->distance;
+
+					if (y >= 0)
+						walls.y = -1;
 				}
 
 				if (y + 1 < height && (heat_map + ((y + 1) * width) + x)->calculated == true)
@@ -426,12 +450,32 @@ void calculate_vector_field(struct level level_to_map, int tile_x, int tile_y)
 				else
 				{
 					dist_bottom = (heat_map + (y * width) + x)->distance;
+
+					if (y + 1 < height)
+						walls.y = 1;
 				}
 
 				if ((heat_map + (y * width) + x)->calculated == true)
 				{
 					float vector_x = (float)(dist_left - dist_right);
 					float vector_y = (float)(dist_top - dist_bottom);
+
+					if (vector_x < 0 && walls.x == -1)
+					{
+						vector_x = 0;
+					}
+					else if (vector_x > 0 && walls.x == 1)
+					{
+						vector_x = 0;
+					}
+					if (vector_y < 0 && walls.y == -1)
+					{
+						vector_y = 0;
+					}
+					else if (vector_y > 0 && walls.y == 1)
+					{
+						vector_y = 0;
+					}
 
 					if ((heat_map + (y * width) + x)->distance != 0)
 					{
