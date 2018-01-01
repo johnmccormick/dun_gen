@@ -808,6 +808,31 @@ void main_game_loop(struct pixel_buffer *buffer, struct platform_memory memory, 
 				
 				struct level_position entity_pos = movable_entity->position;
 
+				if (game->pulse < 10)
+				{
+					entity_pos.pixel_x -= ((float)movable_entity->pixel_width*0.5f) - 0.002;
+					entity_pos.pixel_y -= ((float)movable_entity->pixel_height*0.5f) - 0.002;
+				}
+				else if (game->pulse < 20)
+				{
+					entity_pos.pixel_x += ((float)movable_entity->pixel_width*0.5f) + 0.002;
+					entity_pos.pixel_y -= ((float)movable_entity->pixel_height*0.5f) - 0.002;
+				}
+				else if (game->pulse < 30)
+				{
+					entity_pos.pixel_x -= ((float)movable_entity->pixel_width*0.5f) - 0.002;
+					entity_pos.pixel_y += ((float)movable_entity->pixel_height*0.5f) + 0.002;
+				}
+				else if (game->pulse < 40)
+				{
+					entity_pos.pixel_x += ((float)movable_entity->pixel_width*0.5f) + 0.002;
+					entity_pos.pixel_y += ((float)movable_entity->pixel_height*0.5f) + 0.002;
+				}
+				else if (game->pulse < 60)
+				{
+					// Use center position
+				}
+
 				enemy_move_spec.acceleration_direction = get_position_vector(game, *movable_entity->current_level, entity_pos);
 				enemy_move_spec.acceleration_direction = normalise_vector2(enemy_move_spec.acceleration_direction);
 
@@ -1259,4 +1284,8 @@ void main_game_loop(struct pixel_buffer *buffer, struct platform_memory memory, 
 		}
 	}
 
+	if (++game->pulse > 60)
+	{
+		game->pulse = 0;
+	}
 }
