@@ -1,0 +1,7 @@
+*
+!.gitignore
+!sdl_dun_gen.c
+!dun_gen*
+dun_gen
+dun_gen_debug
+!build*

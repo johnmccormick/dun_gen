@@ -1,2 +1,1 @@
-clang sdl_map_gen.c -o map -Wall -framework SDL2
-
+clang -Wall sdl_dun_gen.c -o dun_gen -framework SDL2 -F /Library/Frameworks
